@@ -28,6 +28,10 @@ type FakeAppsV1 struct {
 	*testing.Fake
 }
 
+func (c *FakeAppsV1) PlacementPolicies() v1.PlacementPolicyInterface {
+	return &FakePlacementPolicies{c}
+}
+
 func (c *FakeAppsV1) StatefulSets(namespace string) v1.StatefulSetInterface {
 	return &FakeStatefulSets{c, namespace}
 }

@@ -1,0 +1,131 @@
+apiVersion: apps.k8s.appscode.com/v1
+kind: PlacementPolicy
+metadata:
+  name: default
+spec:
+  zoneSpreadConstraint:
+    maxSkew: 1
+    whenUnsatisfiable: ScheduleAnyway
+  nodeSpreadConstraint:
+    maxSkew: 1
+    whenUnsatisfiable: ScheduleAnyway
+
+---
+
+apiVersion: apps.k8s.appscode.com/v1
+kind: PlacementPolicy
+metadata:
+  name: spread-across-zones
+spec:
+  zoneSpreadConstraint:
+    maxSkew: 1
+    whenUnsatisfiable: DoNotSchedule
+  nodeSpreadConstraint:
+    maxSkew: 1
+    whenUnsatisfiable: DoNotSchedule
+
+---
+
+apiVersion: apps.k8s.appscode.com/v1
+kind: PlacementPolicy
+metadata:
+  name: use-one-zone
+spec:
+  nodeSpreadConstraint:
+    maxSkew: 1
+    whenUnsatisfiable: DoNotSchedule
+  nodeAffinity:
+    - topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: DoNotSchedule
+      domains:
+        - values:
+            - us-east-2a
+          replicas: "" # empty means rest of the replicas
+
+---
+
+apiVersion: apps.k8s.appscode.com/v1
+kind: PlacementPolicy
+metadata:
+  name: one-on-ondemand
+spec:
+  zoneSpreadConstraint:
+    maxSkew: 1
+    whenUnsatisfiable: DoNotSchedule
+  nodeSpreadConstraint:
+    maxSkew: 1
+    whenUnsatisfiable: DoNotSchedule
+  nodeAffinity:
+    - topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: DoNotSchedule
+      domains:
+        - values:
+            - us-east-2a
+            - us-east-2b
+            - us-east-2c
+          replicas: "" # empty means rest of the replicas
+    - topologyKey: karpenter.sh/capacity-type
+      whenUnsatisfiable: DoNotSchedule
+      domains:
+        - values: ["on-demand"]
+          replicas: "1"
+        - values: ["spot"]
+          replicas: "" # empty means rest of the replicas
+
+---
+
+apiVersion: apps.k8s.appscode.com/v1
+kind: PlacementPolicy
+metadata:
+  name: majority-on-spot
+spec:
+  zoneSpreadConstraint:
+    maxSkew: 1
+    whenUnsatisfiable: DoNotSchedule
+  nodeSpreadConstraint:
+    maxSkew: 1
+    whenUnsatisfiable: DoNotSchedule
+  nodeAffinity:
+    - topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: DoNotSchedule
+      domains:
+        - values:
+            - us-east-2a
+            - us-east-2b
+            - us-east-2c
+          replicas: "" # empty means rest of the replicas
+    - topologyKey: karpenter.sh/capacity-type
+      whenUnsatisfiable: DoNotSchedule
+      domains:
+        - values: ["spot"]
+          replicas: "obj.replicas/2+1"
+        - values: ["on-demand"]
+          replicas: "" # empty means rest of the replicas
+
+---
+
+apiVersion: apps.k8s.appscode.com/v1
+kind: PlacementPolicy
+metadata:
+  name: all-on-spot
+spec:
+  zoneSpreadConstraint:
+    maxSkew: 1
+    whenUnsatisfiable: DoNotSchedule
+  nodeSpreadConstraint:
+    maxSkew: 1
+    whenUnsatisfiable: DoNotSchedule
+  nodeAffinity:
+    - topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: DoNotSchedule
+      domains:
+        - values:
+            - us-east-2a
+            - us-east-2b
+            - us-east-2c
+          replicas: "" # empty means rest of the replicas
+    - topologyKey: karpenter.sh/capacity-type
+      whenUnsatisfiable: DoNotSchedule
+      domains:
+        - values: ["spot"]
+          replicas: "" # empty means rest of the replicas

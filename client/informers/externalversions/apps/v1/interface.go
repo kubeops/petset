@@ -24,6 +24,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// PlacementPolicies returns a PlacementPolicyInformer.
+	PlacementPolicies() PlacementPolicyInformer
 	// StatefulSets returns a StatefulSetInformer.
 	StatefulSets() StatefulSetInformer
 }
@@ -37,6 +39,11 @@ type version struct {
 // New returns a new Interface.
 func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakListOptions internalinterfaces.TweakListOptionsFunc) Interface {
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
+}
+
+// PlacementPolicies returns a PlacementPolicyInformer.
+func (v *version) PlacementPolicies() PlacementPolicyInformer {
+	return &placementPolicyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
 // StatefulSets returns a StatefulSetInformer.

@@ -28,12 +28,17 @@ import (
 
 type AppsV1Interface interface {
 	RESTClient() rest.Interface
+	PlacementPoliciesGetter
 	StatefulSetsGetter
 }
 
 // AppsV1Client is used to interact with features provided by the apps.k8s.appscode.com group.
 type AppsV1Client struct {
 	restClient rest.Interface
+}
+
+func (c *AppsV1Client) PlacementPolicies() PlacementPolicyInterface {
+	return newPlacementPolicies(c)
 }
 
 func (c *AppsV1Client) StatefulSets(namespace string) StatefulSetInterface {
