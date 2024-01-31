@@ -42,9 +42,11 @@ var setupLog = ctrl.Log.WithName("setup")
 
 func NewCmdWebhook(ctx context.Context) *cobra.Command {
 	certDir := "/var/serving-cert"
+	var webhookName string
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
+	flag.StringVar(&webhookName, "webhook-name", "", "The name of mutating and validating webhook configuration")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -102,11 +104,11 @@ func NewCmdWebhook(ctx context.Context) *cobra.Command {
 
 			mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
 				if mgr.GetCache().WaitForCacheSync(context.TODO()) {
-					if err := updateMutatingWebhookCABundle(mgr, certDir); err != nil {
+					if err := updateMutatingWebhookCABundle(mgr, webhookName, certDir); err != nil {
 						setupLog.Error(err, "unable to update caBundle for MutatingWebhookConfiguration")
 						os.Exit(1)
 					}
-					if err := updateValidatingWebhookCABundle(mgr, certDir); err != nil {
+					if err := updateValidatingWebhookCABundle(mgr, webhookName, certDir); err != nil {
 						setupLog.Error(err, "unable to update caBundle for ValidatingWebhookConfiguration")
 						os.Exit(1)
 					}
@@ -125,10 +127,10 @@ func NewCmdWebhook(ctx context.Context) *cobra.Command {
 	return cmd
 }
 
-func updateMutatingWebhookCABundle(mgr ctrl.Manager, certDir string) error {
+func updateMutatingWebhookCABundle(mgr ctrl.Manager, name, certDir string) error {
 	webhook := &v1.MutatingWebhookConfiguration{}
 	err := mgr.GetClient().Get(context.TODO(), types.NamespacedName{
-		Name: "statefulset",
+		Name: name,
 	}, webhook)
 	if err != nil {
 		return err
@@ -144,10 +146,10 @@ func updateMutatingWebhookCABundle(mgr ctrl.Manager, certDir string) error {
 	return mgr.GetClient().Update(context.TODO(), webhook, &client.UpdateOptions{})
 }
 
-func updateValidatingWebhookCABundle(mgr ctrl.Manager, certDir string) error {
+func updateValidatingWebhookCABundle(mgr ctrl.Manager, name, certDir string) error {
 	webhook := &v1.ValidatingWebhookConfiguration{}
 	err := mgr.GetClient().Get(context.TODO(), types.NamespacedName{
-		Name: "statefulset",
+		Name: name,
 	}, webhook)
 	if err != nil {
 		return err
