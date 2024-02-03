@@ -17,7 +17,7 @@ limitations under the License.
 package install
 
 import (
-	v1 "kubeops.dev/statefulset/apis/apps/v1"
+	v1 "kubeops.dev/petset/apis/apps/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"

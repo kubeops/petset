@@ -14,7 +14,7 @@ spec:
 ---
 # apiVersion: apps/v1
 apiVersion: apps.k8s.appscode.com/v1
-kind: StatefulSet
+kind: PetSet
 metadata:
   name: web
 spec:

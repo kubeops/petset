@@ -18,6 +18,6 @@ limitations under the License.
 
 package v1
 
-type PlacementPolicyExpansion interface{}
+type PetSetExpansion interface{}
 
-type StatefulSetExpansion interface{}
+type PlacementPolicyExpansion interface{}

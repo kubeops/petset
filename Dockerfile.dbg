@@ -16,7 +16,7 @@ FROM ghcr.io/appscode/dlv:1.21.2
 
 FROM {ARG_FROM}
 
-LABEL org.opencontainers.image.source https://github.com/kubeops/statefulset
+LABEL org.opencontainers.image.source https://github.com/kubeops/petset
 
 RUN set -x \
   && apt-get update \

@@ -28,10 +28,10 @@ import (
 	"testing"
 	"time"
 
-	// "kubeops.dev/statefulset/pkg/apis/core"
-	// _ "kubeops.dev/statefulset/pkg/apis/core/install"
-	"kubeops.dev/statefulset/pkg/features"
-	"kubeops.dev/statefulset/pkg/securitycontext"
+	// "kubeops.dev/petset/pkg/apis/core"
+	// _ "kubeops.dev/petset/pkg/apis/core/install"
+	"kubeops.dev/petset/pkg/features"
+	"kubeops.dev/petset/pkg/securitycontext"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"

@@ -17,7 +17,7 @@ limitations under the License.
 package cmds
 
 import (
-	api "kubeops.dev/statefulset/apis/apps/v1"
+	api "kubeops.dev/petset/apis/apps/v1"
 
 	"github.com/spf13/cobra"
 	v "gomodules.xyz/x/version"
@@ -27,7 +27,7 @@ import (
 
 func NewRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:               "statefulset",
+		Use:               "petset",
 		DisableAutoGenTag: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			return api.AddToScheme(clientscheme.Scheme)

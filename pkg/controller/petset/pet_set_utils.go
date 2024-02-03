@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package statefulset
+package petset
 
 import (
 	"encoding/json"
@@ -22,11 +22,11 @@ import (
 	"regexp"
 	"strconv"
 
-	api "kubeops.dev/statefulset/apis/apps/v1"
-	podutil "kubeops.dev/statefulset/pkg/api/v1/pod"
-	"kubeops.dev/statefulset/pkg/controller"
-	"kubeops.dev/statefulset/pkg/controller/history"
-	"kubeops.dev/statefulset/pkg/features"
+	api "kubeops.dev/petset/apis/apps/v1"
+	podutil "kubeops.dev/petset/pkg/api/v1/pod"
+	"kubeops.dev/petset/pkg/controller"
+	"kubeops.dev/petset/pkg/controller/history"
+	"kubeops.dev/petset/pkg/features"
 
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -41,26 +41,26 @@ import (
 
 var patchCodec = scheme.Codecs.LegacyCodec(api.SchemeGroupVersion)
 
-// overlappingStatefulSets sorts a list of StatefulSets by creation timestamp, using their names as a tie breaker.
-// Generally used to tie break between StatefulSets that have overlapping selectors.
-type overlappingStatefulSets []*api.StatefulSet
+// overlappingPetSets sorts a list of PetSets by creation timestamp, using their names as a tie breaker.
+// Generally used to tie break between PetSets that have overlapping selectors.
+type overlappingPetSets []*api.PetSet
 
-func (o overlappingStatefulSets) Len() int { return len(o) }
+func (o overlappingPetSets) Len() int { return len(o) }
 
-func (o overlappingStatefulSets) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
+func (o overlappingPetSets) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
 
-func (o overlappingStatefulSets) Less(i, j int) bool {
+func (o overlappingPetSets) Less(i, j int) bool {
 	if o[i].CreationTimestamp.Equal(&o[j].CreationTimestamp) {
 		return o[i].Name < o[j].Name
 	}
 	return o[i].CreationTimestamp.Before(&o[j].CreationTimestamp)
 }
 
-// statefulPodRegex is a regular expression that extracts the parent StatefulSet and ordinal from the Name of a Pod
+// statefulPodRegex is a regular expression that extracts the parent PetSet and ordinal from the Name of a Pod
 var statefulPodRegex = regexp.MustCompile("(.*)-([0-9]+)$")
 
-// getParentNameAndOrdinal gets the name of pod's parent StatefulSet and pod's ordinal as extracted from its Name. If
-// the Pod was not created by a StatefulSet, its parent is considered to be empty string, and its ordinal is considered
+// getParentNameAndOrdinal gets the name of pod's parent PetSet and pod's ordinal as extracted from its Name. If
+// the Pod was not created by a PetSet, its parent is considered to be empty string, and its ordinal is considered
 // to be -1.
 func getParentNameAndOrdinal(pod *v1.Pod) (string, int) {
 	parent := ""
@@ -76,7 +76,7 @@ func getParentNameAndOrdinal(pod *v1.Pod) (string, int) {
 	return parent, ordinal
 }
 
-// getParentName gets the name of pod's parent StatefulSet. If pod has not parent, the empty string is returned.
+// getParentName gets the name of pod's parent PetSet. If pod has not parent, the empty string is returned.
 func getParentName(pod *v1.Pod) string {
 	parent, _ := getParentNameAndOrdinal(pod)
 	return parent
@@ -90,8 +90,8 @@ func getOrdinal(pod *v1.Pod) int {
 
 // getStartOrdinal gets the first possible ordinal (inclusive).
 // Returns spec.ordinals.start if spec.ordinals is set, otherwise returns 0.
-func getStartOrdinal(set *api.StatefulSet) int {
-	if utilfeature.DefaultFeatureGate.Enabled(features.StatefulSetStartOrdinal) {
+func getStartOrdinal(set *api.PetSet) int {
+	if utilfeature.DefaultFeatureGate.Enabled(features.PetSetStartOrdinal) {
 		if set.Spec.Ordinals != nil {
 			return int(set.Spec.Ordinals.Start)
 		}
@@ -100,36 +100,36 @@ func getStartOrdinal(set *api.StatefulSet) int {
 }
 
 // getEndOrdinal gets the last possible ordinal (inclusive).
-func getEndOrdinal(set *api.StatefulSet) int {
+func getEndOrdinal(set *api.PetSet) int {
 	return getStartOrdinal(set) + int(*set.Spec.Replicas) - 1
 }
 
 // podInOrdinalRange returns true if the pod ordinal is within the allowed
-// range of ordinals that this StatefulSet is set to control.
-func podInOrdinalRange(pod *v1.Pod, set *api.StatefulSet) bool {
+// range of ordinals that this PetSet is set to control.
+func podInOrdinalRange(pod *v1.Pod, set *api.PetSet) bool {
 	ordinal := getOrdinal(pod)
 	return ordinal >= getStartOrdinal(set) && ordinal <= getEndOrdinal(set)
 }
 
 // getPodName gets the name of set's child Pod with an ordinal index of ordinal
-func getPodName(set *api.StatefulSet, ordinal int) string {
+func getPodName(set *api.PetSet, ordinal int) string {
 	return fmt.Sprintf("%s-%d", set.Name, ordinal)
 }
 
 // getPersistentVolumeClaimName gets the name of PersistentVolumeClaim for a Pod with an ordinal index of ordinal. claim
 // must be a PersistentVolumeClaim from set's VolumeClaims template.
-func getPersistentVolumeClaimName(set *api.StatefulSet, claim *v1.PersistentVolumeClaim, ordinal int) string {
+func getPersistentVolumeClaimName(set *api.PetSet, claim *v1.PersistentVolumeClaim, ordinal int) string {
 	// NOTE: This name format is used by the heuristics for zone spreading in ChooseZoneForVolume
 	return fmt.Sprintf("%s-%s-%d", claim.Name, set.Name, ordinal)
 }
 
 // isMemberOf tests if pod is a member of set.
-func isMemberOf(set *api.StatefulSet, pod *v1.Pod) bool {
+func isMemberOf(set *api.PetSet, pod *v1.Pod) bool {
 	return getParentName(pod) == set.Name
 }
 
 // identityMatches returns true if pod has a valid identity and network identity for a member of set.
-func identityMatches(set *api.StatefulSet, pod *v1.Pod) bool {
+func identityMatches(set *api.PetSet, pod *v1.Pod) bool {
 	parent, ordinal := getParentNameAndOrdinal(pod)
 	return ordinal >= 0 &&
 		set.Name == parent &&
@@ -139,7 +139,7 @@ func identityMatches(set *api.StatefulSet, pod *v1.Pod) bool {
 }
 
 // storageMatches returns true if pod's Volumes cover the set of PersistentVolumeClaims
-func storageMatches(set *api.StatefulSet, pod *v1.Pod) bool {
+func storageMatches(set *api.PetSet, pod *v1.Pod) bool {
 	ordinal := getOrdinal(pod)
 	if ordinal < 0 {
 		return false
@@ -160,8 +160,8 @@ func storageMatches(set *api.StatefulSet, pod *v1.Pod) bool {
 	return true
 }
 
-// getPersistentVolumeClaimPolicy returns the PVC policy for a StatefulSet, returning a retain policy if the set policy is nil.
-func getPersistentVolumeClaimRetentionPolicy(set *api.StatefulSet) apps.StatefulSetPersistentVolumeClaimRetentionPolicy {
+// getPersistentVolumeClaimPolicy returns the PVC policy for a PetSet, returning a retain policy if the set policy is nil.
+func getPersistentVolumeClaimRetentionPolicy(set *api.PetSet) apps.StatefulSetPersistentVolumeClaimRetentionPolicy {
 	policy := apps.StatefulSetPersistentVolumeClaimRetentionPolicy{
 		WhenDeleted: apps.RetainPersistentVolumeClaimRetentionPolicyType,
 		WhenScaled:  apps.RetainPersistentVolumeClaimRetentionPolicyType,
@@ -173,8 +173,8 @@ func getPersistentVolumeClaimRetentionPolicy(set *api.StatefulSet) apps.Stateful
 }
 
 // claimOwnerMatchesSetAndPod returns false if the ownerRefs of the claim are not set consistently with the
-// PVC deletion policy for the StatefulSet.
-func claimOwnerMatchesSetAndPod(logger klog.Logger, claim *v1.PersistentVolumeClaim, set *api.StatefulSet, pod *v1.Pod) bool {
+// PVC deletion policy for the PetSet.
+func claimOwnerMatchesSetAndPod(logger klog.Logger, claim *v1.PersistentVolumeClaim, set *api.PetSet, pod *v1.Pod) bool {
 	policy := getPersistentVolumeClaimRetentionPolicy(set)
 	const retain = apps.RetainPersistentVolumeClaimRetentionPolicyType
 	const delete = apps.DeletePersistentVolumeClaimRetentionPolicyType
@@ -215,15 +215,15 @@ func claimOwnerMatchesSetAndPod(logger klog.Logger, claim *v1.PersistentVolumeCl
 }
 
 // updateClaimOwnerRefForSetAndPod updates the ownerRefs for the claim according to the deletion policy of
-// the StatefulSet. Returns true if the claim was changed and should be updated and false otherwise.
-func updateClaimOwnerRefForSetAndPod(logger klog.Logger, claim *v1.PersistentVolumeClaim, set *api.StatefulSet, pod *v1.Pod) bool {
+// the PetSet. Returns true if the claim was changed and should be updated and false otherwise.
+func updateClaimOwnerRefForSetAndPod(logger klog.Logger, claim *v1.PersistentVolumeClaim, set *api.PetSet, pod *v1.Pod) bool {
 	needsUpdate := false
 	// Sometimes the version and kind are not set {pod,set}.TypeMeta. These are necessary for the ownerRef.
 	// This is the case both in real clusters and the unittests.
 	// TODO: there must be a better way to do this other than hardcoding the pod version?
 	updateMeta := func(tm *metav1.TypeMeta, kind string) {
 		if tm.APIVersion == "" {
-			if kind == "StatefulSet" {
+			if kind == "PetSet" {
 				tm.APIVersion = "apps/v1"
 			} else {
 				tm.APIVersion = "v1"
@@ -236,7 +236,7 @@ func updateClaimOwnerRefForSetAndPod(logger klog.Logger, claim *v1.PersistentVol
 	podMeta := pod.TypeMeta
 	updateMeta(&podMeta, "Pod")
 	setMeta := set.TypeMeta
-	updateMeta(&setMeta, "StatefulSet")
+	updateMeta(&setMeta, "PetSet")
 	policy := getPersistentVolumeClaimRetentionPolicy(set)
 	const retain = apps.RetainPersistentVolumeClaimRetentionPolicyType
 	const delete = apps.DeletePersistentVolumeClaimRetentionPolicyType
@@ -336,7 +336,7 @@ func removeOwnerRef(target, owner metav1.Object) bool {
 // getPersistentVolumeClaims gets a map of PersistentVolumeClaims to their template names, as defined in set. The
 // returned PersistentVolumeClaims are each constructed with a the name specific to the Pod. This name is determined
 // by getPersistentVolumeClaimName.
-func getPersistentVolumeClaims(set *api.StatefulSet, pod *v1.Pod) map[string]v1.PersistentVolumeClaim {
+func getPersistentVolumeClaims(set *api.PetSet, pod *v1.Pod) map[string]v1.PersistentVolumeClaim {
 	ordinal := getOrdinal(pod)
 	templates := set.Spec.VolumeClaimTemplates
 	claims := make(map[string]v1.PersistentVolumeClaim, len(templates))
@@ -358,7 +358,7 @@ func getPersistentVolumeClaims(set *api.StatefulSet, pod *v1.Pod) map[string]v1.
 
 // updateStorage updates pod's Volumes to conform with the PersistentVolumeClaim of set's templates. If pod has
 // conflicting local Volumes these are replaced with Volumes that conform to the set's templates.
-func updateStorage(set *api.StatefulSet, pod *v1.Pod) {
+func updateStorage(set *api.PetSet, pod *v1.Pod) {
 	currentVolumes := pod.Spec.Volumes
 	claims := getPersistentVolumeClaims(set, pod)
 	newVolumes := make([]v1.Volume, 0, len(claims))
@@ -382,16 +382,16 @@ func updateStorage(set *api.StatefulSet, pod *v1.Pod) {
 	pod.Spec.Volumes = newVolumes
 }
 
-func initIdentity(set *api.StatefulSet, pod *v1.Pod) {
+func initIdentity(set *api.PetSet, pod *v1.Pod) {
 	updateIdentity(set, pod)
 	// Set these immutable fields only on initial Pod creation, not updates.
 	pod.Spec.Hostname = pod.Name
 	pod.Spec.Subdomain = set.Spec.ServiceName
 }
 
-// updateIdentity updates pod's name, hostname, and subdomain, and StatefulSetPodNameLabel to conform to set's name
+// updateIdentity updates pod's name, hostname, and subdomain, and PetSetPodNameLabel to conform to set's name
 // and headless service.
-func updateIdentity(set *api.StatefulSet, pod *v1.Pod) {
+func updateIdentity(set *api.PetSet, pod *v1.Pod) {
 	ordinal := getOrdinal(pod)
 	pod.Name = getPodName(set, ordinal)
 	pod.Namespace = set.Namespace
@@ -444,11 +444,11 @@ func isHealthy(pod *v1.Pod) bool {
 }
 
 // allowsBurst is true if the alpha burst annotation is set.
-func allowsBurst(set *api.StatefulSet) bool {
+func allowsBurst(set *api.PetSet) bool {
 	return set.Spec.PodManagementPolicy == apps.ParallelPodManagement
 }
 
-// setPodRevision sets the revision of Pod to revision by adding the StatefulSetRevisionLabel
+// setPodRevision sets the revision of Pod to revision by adding the PetSetRevisionLabel
 func setPodRevision(pod *v1.Pod, revision string) {
 	if pod.Labels == nil {
 		pod.Labels = make(map[string]string)
@@ -456,7 +456,7 @@ func setPodRevision(pod *v1.Pod, revision string) {
 	pod.Labels[apps.StatefulSetRevisionLabel] = revision
 }
 
-// getPodRevision gets the revision of Pod by inspecting the StatefulSetRevisionLabel. If pod has no revision the empty
+// getPodRevision gets the revision of Pod by inspecting the PetSetRevisionLabel. If pod has no revision the empty
 // string is returned.
 func getPodRevision(pod *v1.Pod) string {
 	if pod.Labels == nil {
@@ -465,8 +465,8 @@ func getPodRevision(pod *v1.Pod) string {
 	return pod.Labels[apps.StatefulSetRevisionLabel]
 }
 
-// newStatefulSetPod returns a new Pod conforming to the set's Spec with an identity generated from ordinal.
-func newStatefulSetPod(set *api.StatefulSet, ordinal int) *v1.Pod {
+// newPetSetPod returns a new Pod conforming to the set's Spec with an identity generated from ordinal.
+func newPetSetPod(set *api.PetSet, ordinal int) *v1.Pod {
 	pod, _ := controller.GetPodFromTemplate(&set.Spec.Template, set, metav1.NewControllerRef(set, controllerKind))
 	pod.Name = getPodName(set, ordinal)
 	initIdentity(set, pod)
@@ -474,28 +474,28 @@ func newStatefulSetPod(set *api.StatefulSet, ordinal int) *v1.Pod {
 	return pod
 }
 
-// newVersionedStatefulSetPod creates a new Pod for a StatefulSet. currentSet is the representation of the set at the
+// newVersionedPetSetPod creates a new Pod for a PetSet. currentSet is the representation of the set at the
 // current revision. updateSet is the representation of the set at the updateRevision. currentRevision is the name of
 // the current revision. updateRevision is the name of the update revision. ordinal is the ordinal of the Pod. If the
 // returned error is nil, the returned Pod is valid.
-func newVersionedStatefulSetPod(currentSet, updateSet *api.StatefulSet, currentRevision, updateRevision string, ordinal int) *v1.Pod {
+func newVersionedPetSetPod(currentSet, updateSet *api.PetSet, currentRevision, updateRevision string, ordinal int) *v1.Pod {
 	if currentSet.Spec.UpdateStrategy.Type == apps.RollingUpdateStatefulSetStrategyType &&
 		(currentSet.Spec.UpdateStrategy.RollingUpdate == nil && ordinal < (getStartOrdinal(currentSet)+int(currentSet.Status.CurrentReplicas))) ||
 		(currentSet.Spec.UpdateStrategy.RollingUpdate != nil && ordinal < (getStartOrdinal(currentSet)+int(*currentSet.Spec.UpdateStrategy.RollingUpdate.Partition))) {
-		pod := newStatefulSetPod(currentSet, ordinal)
+		pod := newPetSetPod(currentSet, ordinal)
 		setPodRevision(pod, currentRevision)
 		return pod
 	}
-	pod := newStatefulSetPod(updateSet, ordinal)
+	pod := newPetSetPod(updateSet, ordinal)
 	setPodRevision(pod, updateRevision)
 	return pod
 }
 
-// getPatch returns a strategic merge patch that can be applied to restore a StatefulSet to a
+// getPatch returns a strategic merge patch that can be applied to restore a PetSet to a
 // previous version. If the returned error is nil the patch is valid. The current state that we save is just the
 // PodSpecTemplate. We can modify this later to encompass more state (or less) and remain compatible with previously
 // recorded patches.
-func getPatch(set *api.StatefulSet) ([]byte, error) {
+func getPatch(set *api.PetSet) ([]byte, error) {
 	data, err := runtime.Encode(patchCodec, set)
 	if err != nil {
 		return nil, err
@@ -518,9 +518,9 @@ func getPatch(set *api.StatefulSet) ([]byte, error) {
 
 // newRevision creates a new ControllerRevision containing a patch that reapplies the target state of set.
 // The Revision of the returned ControllerRevision is set to revision. If the returned error is nil, the returned
-// ControllerRevision is valid. StatefulSet revisions are stored as patches that re-apply the current state of set
-// to a new StatefulSet using a strategic merge patch to replace the saved state of the new StatefulSet.
-func newRevision(set *api.StatefulSet, revision int64, collisionCount *int32) (*apps.ControllerRevision, error) {
+// ControllerRevision is valid. PetSet revisions are stored as patches that re-apply the current state of set
+// to a new PetSet using a strategic merge patch to replace the saved state of the new PetSet.
+func newRevision(set *api.PetSet, revision int64, collisionCount *int32) (*apps.ControllerRevision, error) {
 	patch, err := getPatch(set)
 	if err != nil {
 		return nil, err
@@ -543,15 +543,15 @@ func newRevision(set *api.StatefulSet, revision int64, collisionCount *int32) (*
 	return cr, nil
 }
 
-// ApplyRevision returns a new StatefulSet constructed by restoring the state in revision to set. If the returned error
-// is nil, the returned StatefulSet is valid.
-func ApplyRevision(set *api.StatefulSet, revision *apps.ControllerRevision) (*api.StatefulSet, error) {
+// ApplyRevision returns a new PetSet constructed by restoring the state in revision to set. If the returned error
+// is nil, the returned PetSet is valid.
+func ApplyRevision(set *api.PetSet, revision *apps.ControllerRevision) (*api.PetSet, error) {
 	clone := set.DeepCopy()
 	patched, err := strategicpatch.StrategicMergePatch([]byte(runtime.EncodeOrDie(patchCodec, clone)), revision.Data.Raw, clone)
 	if err != nil {
 		return nil, err
 	}
-	restoredSet := &api.StatefulSet{}
+	restoredSet := &api.PetSet{}
 	err = json.Unmarshal(patched, restoredSet)
 	if err != nil {
 		return nil, err
@@ -572,7 +572,7 @@ func nextRevision(revisions []*apps.ControllerRevision) int64 {
 
 // inconsistentStatus returns true if the ObservedGeneration of status is greater than set's
 // Generation or if any of the status's fields do not match those of set's status.
-func inconsistentStatus(set *api.StatefulSet, status *apps.StatefulSetStatus) bool {
+func inconsistentStatus(set *api.PetSet, status *apps.StatefulSetStatus) bool {
 	return status.ObservedGeneration > set.Status.ObservedGeneration ||
 		status.Replicas != set.Status.Replicas ||
 		status.CurrentReplicas != set.Status.CurrentReplicas ||
@@ -587,7 +587,7 @@ func inconsistentStatus(set *api.StatefulSet, status *apps.StatefulSetStatus) bo
 // to the updateRevision. status's currentRevision is set to updateRevision and its' updateRevision
 // is set to the empty string. status's currentReplicas is set to updateReplicas and its updateReplicas
 // are set to 0.
-func completeRollingUpdate(set *api.StatefulSet, status *apps.StatefulSetStatus) {
+func completeRollingUpdate(set *api.PetSet, status *apps.StatefulSetStatus) {
 	if set.Spec.UpdateStrategy.Type == apps.RollingUpdateStatefulSetStrategyType &&
 		status.UpdatedReplicas == *set.Spec.Replicas &&
 		status.ReadyReplicas == *set.Spec.Replicas &&
@@ -598,7 +598,7 @@ func completeRollingUpdate(set *api.StatefulSet, status *apps.StatefulSetStatus)
 }
 
 // ascendingOrdinal is a sort.Interface that Sorts a list of Pods based on the ordinals extracted
-// from the Pod. Pod's that have not been constructed by StatefulSet's have an ordinal of -1, and are therefore pushed
+// from the Pod. Pod's that have not been constructed by PetSet's have an ordinal of -1, and are therefore pushed
 // to the front of the list.
 type ascendingOrdinal []*v1.Pod
 
@@ -615,7 +615,7 @@ func (ao ascendingOrdinal) Less(i, j int) bool {
 }
 
 // descendingOrdinal is a sort.Interface that Sorts a list of Pods based on the ordinals extracted
-// from the Pod. Pod's that have not been constructed by StatefulSet's have an ordinal of -1, and are therefore pushed
+// from the Pod. Pod's that have not been constructed by PetSet's have an ordinal of -1, and are therefore pushed
 // to the end of the list.
 type descendingOrdinal []*v1.Pod
 
@@ -631,12 +631,12 @@ func (do descendingOrdinal) Less(i, j int) bool {
 	return getOrdinal(do[i]) > getOrdinal(do[j])
 }
 
-// getStatefulSetMaxUnavailable calculates the real maxUnavailable number according to the replica count
+// getPetSetMaxUnavailable calculates the real maxUnavailable number according to the replica count
 // and maxUnavailable from rollingUpdateStrategy. The number defaults to 1 if the maxUnavailable field is
 // not set, and it will be round down to at least 1 if the maxUnavailable value is a percentage.
 // Note that API validation has already guaranteed the maxUnavailable field to be >1 if it is an integer
 // or 0% < value <= 100% if it is a percentage, so we don't have to consider other cases.
-func getStatefulSetMaxUnavailable(maxUnavailable *intstr.IntOrString, replicaCount int) (int, error) {
+func getPetSetMaxUnavailable(maxUnavailable *intstr.IntOrString, replicaCount int) (int, error) {
 	maxUnavailableNum, err := intstr.GetScaledValueFromIntOrPercent(intstr.ValueOrDefault(maxUnavailable, intstr.FromInt32(1)), replicaCount, false)
 	if err != nil {
 		return 0, err

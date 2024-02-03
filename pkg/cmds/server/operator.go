@@ -21,10 +21,10 @@ import (
 	"flag"
 	"time"
 
-	"kubeops.dev/statefulset/client/clientset/versioned"
-	apiinformers "kubeops.dev/statefulset/client/informers/externalversions"
-	"kubeops.dev/statefulset/pkg/controller"
-	"kubeops.dev/statefulset/pkg/controller/statefulset"
+	"kubeops.dev/petset/client/clientset/versioned"
+	apiinformers "kubeops.dev/petset/client/informers/externalversions"
+	"kubeops.dev/petset/pkg/controller"
+	"kubeops.dev/petset/pkg/controller/petset"
 
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/informers"
@@ -118,10 +118,10 @@ func (s OperatorOptions) Run(ctx context.Context) error {
 		return err
 	}
 
-	ctrl := statefulset.NewStatefulSetController(
+	ctrl := petset.NewPetSetController(
 		ctx,
 		cfg.KubeInformerFactory.Core().V1().Pods(),
-		cfg.InformerFactory.Apps().V1().StatefulSets(),
+		cfg.InformerFactory.Apps().V1().PetSets(),
 		cfg.KubeInformerFactory.Core().V1().PersistentVolumeClaims(),
 		cfg.KubeInformerFactory.Apps().V1().ControllerRevisions(),
 		cfg.KubeClient,

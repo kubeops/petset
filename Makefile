@@ -15,12 +15,12 @@
 SHELL=/bin/bash -o pipefail
 
 PRODUCT_OWNER_NAME := appscode
-PRODUCT_NAME       := statefulset
+PRODUCT_NAME       := petset
 ENFORCE_LICENSE    ?=
 
 GO_PKG   := kubeops.dev
 REPO     := $(notdir $(shell pwd))
-BIN      := statefulset
+BIN      := petset
 COMPRESS ?= no
 
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
@@ -425,7 +425,7 @@ install:
 	@cd ../installer; \
 	kubectl create ns $(KUBE_NAMESPACE) || true; \
 	kubectl label ns $(KUBE_NAMESPACE) pod-security.kubernetes.io/enforce=restricted; \
-	helm upgrade -i statefulset charts/statefulset --wait --debug --force \
+	helm upgrade -i petset charts/petset --wait --debug --force \
 		--namespace=$(KUBE_NAMESPACE) --create-namespace \
 		--set registryFQDN="" \
 		--set operator.registry=$(REGISTRY) \
@@ -439,7 +439,7 @@ install:
 .PHONY: uninstall
 uninstall:
 	@cd ../installer; \
-	helm uninstall statefulset --namespace=$(KUBE_NAMESPACE) || true
+	helm uninstall petset --namespace=$(KUBE_NAMESPACE) || true
 
 .PHONY: purge
 purge: uninstall
@@ -524,7 +524,7 @@ clean:
 
 .PHONY: run
 run:
-	go run -mod=vendor ./cmd/statefulset run \
+	go run -mod=vendor ./cmd/petset run \
 		--v=3 \
 		--secure-port=8443 \
 		--kubeconfig=$(KUBECONFIG) \

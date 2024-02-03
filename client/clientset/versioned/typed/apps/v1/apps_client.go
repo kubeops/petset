@@ -22,14 +22,14 @@ import (
 	"net/http"
 
 	rest "k8s.io/client-go/rest"
-	v1 "kubeops.dev/statefulset/apis/apps/v1"
-	"kubeops.dev/statefulset/client/clientset/versioned/scheme"
+	v1 "kubeops.dev/petset/apis/apps/v1"
+	"kubeops.dev/petset/client/clientset/versioned/scheme"
 )
 
 type AppsV1Interface interface {
 	RESTClient() rest.Interface
+	PetSetsGetter
 	PlacementPoliciesGetter
-	StatefulSetsGetter
 }
 
 // AppsV1Client is used to interact with features provided by the apps.k8s.appscode.com group.
@@ -37,12 +37,12 @@ type AppsV1Client struct {
 	restClient rest.Interface
 }
 
-func (c *AppsV1Client) PlacementPolicies() PlacementPolicyInterface {
-	return newPlacementPolicies(c)
+func (c *AppsV1Client) PetSets(namespace string) PetSetInterface {
+	return newPetSets(c, namespace)
 }
 
-func (c *AppsV1Client) StatefulSets(namespace string) StatefulSetInterface {
-	return newStatefulSets(c, namespace)
+func (c *AppsV1Client) PlacementPolicies() PlacementPolicyInterface {
+	return newPlacementPolicies(c)
 }
 
 // NewForConfig creates a new AppsV1Client for the given config.

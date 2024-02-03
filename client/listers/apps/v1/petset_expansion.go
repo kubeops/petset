@@ -21,36 +21,36 @@ import (
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	api "kubeops.dev/statefulset/apis/apps/v1"
+	api "kubeops.dev/petset/apis/apps/v1"
 )
 
-// StatefulSetListerExpansion allows custom methods to be added to
-// StatefulSetLister.
-type StatefulSetListerExpansion interface {
-	GetPodStatefulSets(pod *v1.Pod) ([]*api.StatefulSet, error)
+// PetSetListerExpansion allows custom methods to be added to
+// PetSetLister.
+type PetSetListerExpansion interface {
+	GetPodPetSets(pod *v1.Pod) ([]*api.PetSet, error)
 }
 
-// StatefulSetNamespaceListerExpansion allows custom methods to be added to
-// StatefulSetNamespaceLister.
-type StatefulSetNamespaceListerExpansion interface{}
+// PetSetNamespaceListerExpansion allows custom methods to be added to
+// PetSetNamespaceLister.
+type PetSetNamespaceListerExpansion interface{}
 
-// GetPodStatefulSets returns a list of StatefulSets that potentially match a pod.
+// GetPodPetSets returns a list of PetSets that potentially match a pod.
 // Only the one specified in the Pod's ControllerRef will actually manage it.
-// Returns an error only if no matching StatefulSets are found.
-func (s *statefulSetLister) GetPodStatefulSets(pod *v1.Pod) ([]*api.StatefulSet, error) {
+// Returns an error only if no matching PetSets are found.
+func (s *petSetLister) GetPodPetSets(pod *v1.Pod) ([]*api.PetSet, error) {
 	var selector labels.Selector
-	var ps *api.StatefulSet
+	var ps *api.PetSet
 
 	if len(pod.Labels) == 0 {
-		return nil, fmt.Errorf("no StatefulSets found for pod %v because it has no labels", pod.Name)
+		return nil, fmt.Errorf("no PetSets found for pod %v because it has no labels", pod.Name)
 	}
 
-	list, err := s.StatefulSets(pod.Namespace).List(labels.Everything())
+	list, err := s.PetSets(pod.Namespace).List(labels.Everything())
 	if err != nil {
 		return nil, err
 	}
 
-	var psList []*api.StatefulSet
+	var psList []*api.PetSet
 	for i := range list {
 		ps = list[i]
 		if ps.Namespace != pod.Namespace {
@@ -62,7 +62,7 @@ func (s *statefulSetLister) GetPodStatefulSets(pod *v1.Pod) ([]*api.StatefulSet,
 			continue
 		}
 
-		// If a StatefulSet with a nil or empty selector creeps in, it should match nothing, not everything.
+		// If a PetSet with a nil or empty selector creeps in, it should match nothing, not everything.
 		if selector.Empty() || !selector.Matches(labels.Set(pod.Labels)) {
 			continue
 		}
@@ -70,7 +70,7 @@ func (s *statefulSetLister) GetPodStatefulSets(pod *v1.Pod) ([]*api.StatefulSet,
 	}
 
 	if len(psList) == 0 {
-		return nil, fmt.Errorf("could not find StatefulSet for pod %s in namespace %s with labels: %v", pod.Name, pod.Namespace, pod.Labels)
+		return nil, fmt.Errorf("could not find PetSet for pod %s in namespace %s with labels: %v", pod.Name, pod.Namespace, pod.Labels)
 	}
 
 	return psList, nil

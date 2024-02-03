@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	"kubeops.dev/statefulset/pkg/apis/core/helper"
+	"kubeops.dev/petset/pkg/apis/core/helper"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"

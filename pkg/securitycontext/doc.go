@@ -15,4 +15,4 @@ limitations under the License.
 */
 
 // Package securitycontext contains security context api implementations
-package securitycontext // import "kubeops.dev/statefulset/pkg/securitycontext"
+package securitycontext // import "kubeops.dev/petset/pkg/securitycontext"

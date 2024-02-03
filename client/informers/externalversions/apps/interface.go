@@ -19,8 +19,8 @@ limitations under the License.
 package apps
 
 import (
-	v1 "kubeops.dev/statefulset/client/informers/externalversions/apps/v1"
-	internalinterfaces "kubeops.dev/statefulset/client/informers/externalversions/internalinterfaces"
+	v1 "kubeops.dev/petset/client/informers/externalversions/apps/v1"
+	internalinterfaces "kubeops.dev/petset/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.

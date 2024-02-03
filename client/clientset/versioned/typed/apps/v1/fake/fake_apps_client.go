@@ -21,19 +21,19 @@ package fake
 import (
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
-	v1 "kubeops.dev/statefulset/client/clientset/versioned/typed/apps/v1"
+	v1 "kubeops.dev/petset/client/clientset/versioned/typed/apps/v1"
 )
 
 type FakeAppsV1 struct {
 	*testing.Fake
 }
 
-func (c *FakeAppsV1) PlacementPolicies() v1.PlacementPolicyInterface {
-	return &FakePlacementPolicies{c}
+func (c *FakeAppsV1) PetSets(namespace string) v1.PetSetInterface {
+	return &FakePetSets{c, namespace}
 }
 
-func (c *FakeAppsV1) StatefulSets(namespace string) v1.StatefulSetInterface {
-	return &FakeStatefulSets{c, namespace}
+func (c *FakeAppsV1) PlacementPolicies() v1.PlacementPolicyInterface {
+	return &FakePlacementPolicies{c}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

@@ -26,7 +26,7 @@ import (
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
-	v1 "kubeops.dev/statefulset/apis/apps/v1"
+	v1 "kubeops.dev/petset/apis/apps/v1"
 )
 
 // FakePlacementPolicies implements PlacementPolicyInterface

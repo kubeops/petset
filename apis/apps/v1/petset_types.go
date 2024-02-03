@@ -30,14 +30,14 @@ import (
 // +kubebuilder:subresource:status
 // +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas
 
-// StatefulSet represents a set of pods with consistent identities.
+// PetSet represents a set of pods with consistent identities.
 // Identities are defined as:
 //   - Network: A single stable DNS and hostname.
 //   - Storage: As many VolumeClaims as requested.
 //
-// The StatefulSet guarantees that a given network identity will always
+// The PetSet guarantees that a given network identity will always
 // map to the same storage identity.
-type StatefulSet struct {
+type PetSet struct {
 	metav1.TypeMeta `json:",inline"`
 	// Standard object's metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
@@ -46,16 +46,16 @@ type StatefulSet struct {
 
 	// Spec defines the desired identities of pods in this set.
 	// +optional
-	Spec StatefulSetSpec `json:"spec,omitempty"`
+	Spec PetSetSpec `json:"spec,omitempty"`
 
-	// Status is the current status of Pods in this StatefulSet. This data
+	// Status is the current status of Pods in this PetSet. This data
 	// may be out of date by some window of time.
 	// +optional
 	Status apps.StatefulSetStatus `json:"status,omitempty"`
 }
 
-// A StatefulSetSpec is the specification of a StatefulSet.
-type StatefulSetSpec struct {
+// A PetSetSpec is the specification of a PetSet.
+type PetSetSpec struct {
 	// replicas is the desired number of replicas of the given Template.
 	// These are replicas in the sense that they are instantiations of the
 	// same Template, but individual replicas also have a consistent identity.
@@ -70,16 +70,16 @@ type StatefulSetSpec struct {
 	Selector *metav1.LabelSelector `json:"selector"`
 
 	// template is the object that describes the pod that will be created if
-	// insufficient replicas are detected. Each pod stamped out by the StatefulSet
+	// insufficient replicas are detected. Each pod stamped out by the PetSet
 	// will fulfill this Template, but have a unique identity from the rest
-	// of the StatefulSet. Each pod will be named with the format
-	// <statefulsetname>-<podindex>. For example, a pod in a StatefulSet named
+	// of the PetSet. Each pod will be named with the format
+	// <petsetname>-<podindex>. For example, a pod in a PetSet named
 	// "web" with index number "3" would be named "web-3".
 	// The only allowed template.spec.restartPolicy value is "Always".
 	Template PodTemplateSpec `json:"template"`
 
 	// volumeClaimTemplates is a list of claims that pods are allowed to reference.
-	// The StatefulSet controller is responsible for mapping network identities to
+	// The PetSet controller is responsible for mapping network identities to
 	// claims in a way that maintains the identity of a pod. Every claim in
 	// this list must have at least one matching (by name) volumeMount in one
 	// container in the template. A claim in this list takes precedence over
@@ -89,11 +89,11 @@ type StatefulSetSpec struct {
 	// +listType=atomic
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 
-	// serviceName is the name of the service that governs this StatefulSet.
-	// This service must exist before the StatefulSet, and is responsible for
+	// serviceName is the name of the service that governs this PetSet.
+	// This service must exist before the PetSet, and is responsible for
 	// the network identity of the set. Pods get DNS/hostnames that follow the
 	// pattern: pod-specific-string.serviceName.default.svc.cluster.local
-	// where "pod-specific-string" is managed by the StatefulSet controller.
+	// where "pod-specific-string" is managed by the PetSet controller.
 	ServiceName string `json:"serviceName"`
 
 	// podManagementPolicy controls how pods are created during initial scale up,
@@ -107,15 +107,15 @@ type StatefulSetSpec struct {
 	// +optional
 	PodManagementPolicy apps.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
 
-	// updateStrategy indicates the StatefulSetUpdateStrategy that will be
-	// employed to update Pods in the StatefulSet when a revision is made to
+	// updateStrategy indicates the PetSetUpdateStrategy that will be
+	// employed to update Pods in the PetSet when a revision is made to
 	// Template.
 	UpdateStrategy apps.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
 
 	// revisionHistoryLimit is the maximum number of revisions that will
-	// be maintained in the StatefulSet's revision history. The revision history
+	// be maintained in the PetSet's revision history. The revision history
 	// consists of all revisions not represented by a currently applied
-	// StatefulSetSpec version. The default value is 10.
+	// PetSetSpec version. The default value is 10.
 	RevisionHistoryLimit *int32 `json:"revisionHistoryLimit,omitempty"`
 
 	// Minimum number of seconds for which a newly created pod should be ready
@@ -129,14 +129,14 @@ type StatefulSetSpec struct {
 	// volume claims are created as needed and retained until manually deleted. This
 	// policy allows the lifecycle to be altered, for example by deleting persistent
 	// volume claims when their stateful set is deleted, or when their pod is scaled
-	// down. This requires the StatefulSetAutoDeletePVC feature gate to be enabled,
+	// down. This requires the PetSetAutoDeletePVC feature gate to be enabled,
 	// which is alpha.  +optional
 	PersistentVolumeClaimRetentionPolicy *apps.StatefulSetPersistentVolumeClaimRetentionPolicy `json:"persistentVolumeClaimRetentionPolicy,omitempty"`
 
-	// ordinals controls the numbering of replica indices in a StatefulSet. The
+	// ordinals controls the numbering of replica indices in a PetSet. The
 	// default ordinals behavior assigns a "0" index to the first replica and
 	// increments the index by one for each additional replica requested. Using
-	// the ordinals field requires the StatefulSetStartOrdinal feature gate to be
+	// the ordinals field requires the PetSetStartOrdinal feature gate to be
 	// enabled, which is beta.
 	// +optional
 	Ordinals *apps.StatefulSetOrdinals `json:"ordinals,omitempty"`
@@ -160,8 +160,8 @@ type PodTemplateSpec struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// StatefulSetList is a collection of StatefulSets.
-type StatefulSetList struct {
+// PetSetList is a collection of PetSets.
+type PetSetList struct {
 	metav1.TypeMeta `json:",inline"`
 	// Standard list's metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
@@ -169,9 +169,9 @@ type StatefulSetList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 
 	// Items is the list of stateful sets.
-	Items []StatefulSet `json:"items"`
+	Items []PetSet `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&StatefulSet{}, &StatefulSetList{})
+	SchemeBuilder.Register(&PetSet{}, &PetSetList{})
 }

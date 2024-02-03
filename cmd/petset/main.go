@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The Kubernetes Authors.
+Copyright AppsCode Inc. and Contributors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,8 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// +k8s:deepcopy-gen=package
-// +k8s:conversion-gen=kubeops.dev/statefulset/pkg/controller/statefulset/config
-// +k8s:conversion-gen-external-types=k8s.io/kube-controller-manager/config/v1alpha1
+package main
 
-package v1alpha1 // import "kubeops.dev/statefulset/pkg/controller/statefulset/config/v1alpha1"
+import (
+	"kubeops.dev/petset/pkg/cmds"
+
+	"gomodules.xyz/logs"
+	_ "k8s.io/client-go/kubernetes/fake"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/klog/v2"
+)
+
+func main() {
+	if err := realMain(); err != nil {
+		klog.Warningln(err)
+	}
+}
+
+func realMain() error {
+	rootCmd := cmds.NewRootCmd()
+	logs.Init(rootCmd, true)
+	defer logs.FlushLogs()
+
+	return rootCmd.Execute()
+}

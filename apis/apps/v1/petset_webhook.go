@@ -17,7 +17,7 @@ limitations under the License.
 package v1
 
 import (
-	"kubeops.dev/statefulset/pkg/features"
+	"kubeops.dev/petset/pkg/features"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,10 +31,10 @@ import (
 )
 
 // log is for logging in this package.
-var statefulsetlog = logf.Log.WithName("statefulset-resource")
+var petsetlog = logf.Log.WithName("petset-resource")
 
 // SetupWebhookWithManager will setup the manager to manage the webhooks
-func (r *StatefulSet) SetupWebhookWithManager(mgr ctrl.Manager) error {
+func (r *PetSet) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
 		Complete()
@@ -42,12 +42,12 @@ func (r *StatefulSet) SetupWebhookWithManager(mgr ctrl.Manager) error {
 
 // TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 
-//+kubebuilder:webhook:path=/mutate-apps-k8s-appscode-com-v1-statefulset,mutating=true,failurePolicy=fail,sideEffects=None,groups=apps.k8s.appscode.com,resources=statefulsets,verbs=create;update,versions=v1,name=mstatefulset.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/mutate-apps-k8s-appscode-com-v1-petset,mutating=true,failurePolicy=fail,sideEffects=None,groups=apps.k8s.appscode.com,resources=petsets,verbs=create;update,versions=v1,name=mpetset.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Defaulter = &StatefulSet{}
+var _ webhook.Defaulter = &PetSet{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
-func (obj *StatefulSet) Default() {
+func (obj *PetSet) Default() {
 	if len(obj.Spec.PodManagementPolicy) == 0 {
 		obj.Spec.PodManagementPolicy = appsv1.OrderedReadyPodManagement
 	}
@@ -67,14 +67,14 @@ func (obj *StatefulSet) Default() {
 		if obj.Spec.UpdateStrategy.RollingUpdate.Partition == nil {
 			obj.Spec.UpdateStrategy.RollingUpdate.Partition = ptr.To[int32](0)
 		}
-		if utilfeature.DefaultFeatureGate.Enabled(features.MaxUnavailableStatefulSet) {
+		if utilfeature.DefaultFeatureGate.Enabled(features.MaxUnavailablePetSet) {
 			if obj.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable == nil {
 				obj.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable = ptr.To(intstr.FromInt32(1))
 			}
 		}
 	}
 
-	if utilfeature.DefaultFeatureGate.Enabled(features.StatefulSetAutoDeletePVC) {
+	if utilfeature.DefaultFeatureGate.Enabled(features.PetSetAutoDeletePVC) {
 		if obj.Spec.PersistentVolumeClaimRetentionPolicy == nil {
 			obj.Spec.PersistentVolumeClaimRetentionPolicy = &appsv1.StatefulSetPersistentVolumeClaimRetentionPolicy{}
 		}
@@ -97,29 +97,29 @@ func (obj *StatefulSet) Default() {
 }
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-//+kubebuilder:webhook:path=/validate-apps-k8s-appscode-com-v1-statefulset,mutating=false,failurePolicy=fail,sideEffects=None,groups=apps.k8s.appscode.com,resources=statefulsets,verbs=create;update,versions=v1,name=vstatefulset.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/validate-apps-k8s-appscode-com-v1-petset,mutating=false,failurePolicy=fail,sideEffects=None,groups=apps.k8s.appscode.com,resources=petsets,verbs=create;update,versions=v1,name=vpetset.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &StatefulSet{}
+var _ webhook.Validator = &PetSet{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *StatefulSet) ValidateCreate() (admission.Warnings, error) {
-	statefulsetlog.Info("validate create", "name", r.Name)
+func (r *PetSet) ValidateCreate() (admission.Warnings, error) {
+	petsetlog.Info("validate create", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object creation.
 	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *StatefulSet) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
-	statefulsetlog.Info("validate update", "name", r.Name)
+func (r *PetSet) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
+	petsetlog.Info("validate update", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object update.
 	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *StatefulSet) ValidateDelete() (admission.Warnings, error) {
-	statefulsetlog.Info("validate delete", "name", r.Name)
+func (r *PetSet) ValidateDelete() (admission.Warnings, error) {
+	petsetlog.Info("validate delete", "name", r.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.
 	return nil, nil

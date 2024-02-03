@@ -25,8 +25,8 @@ import (
 	"sort"
 	"strconv"
 
-	"kubeops.dev/statefulset/pkg/controller"
-	hashutil "kubeops.dev/statefulset/pkg/util/hash"
+	"kubeops.dev/petset/pkg/controller"
+	hashutil "kubeops.dev/petset/pkg/util/hash"
 
 	apps "k8s.io/api/apps/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"

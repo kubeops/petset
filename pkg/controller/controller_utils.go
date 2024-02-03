@@ -27,15 +27,15 @@ import (
 	"sync/atomic"
 	"time"
 
-	api "kubeops.dev/statefulset/apis/apps/v1"
-	podutil "kubeops.dev/statefulset/pkg/api/v1/pod"
-	"kubeops.dev/statefulset/pkg/apis/core/helper"
+	api "kubeops.dev/petset/apis/apps/v1"
+	podutil "kubeops.dev/petset/pkg/api/v1/pod"
+	"kubeops.dev/petset/pkg/apis/core/helper"
 
-	// _ "kubeops.dev/statefulset/pkg/apis/core/install"
-	// "kubeops.dev/statefulset/pkg/apis/core/validation"
-	"kubeops.dev/statefulset/pkg/features"
-	hashutil "kubeops.dev/statefulset/pkg/util/hash"
-	taintutils "kubeops.dev/statefulset/pkg/util/taints"
+	// _ "kubeops.dev/petset/pkg/apis/core/install"
+	// "kubeops.dev/petset/pkg/apis/core/validation"
+	"kubeops.dev/petset/pkg/features"
+	hashutil "kubeops.dev/petset/pkg/util/hash"
+	taintutils "kubeops.dev/petset/pkg/util/taints"
 
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"

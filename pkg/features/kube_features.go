@@ -530,8 +530,8 @@ const (
 	// owner: @krmayankk
 	// alpha: v1.24
 	//
-	// Enables maxUnavailable for StatefulSet
-	MaxUnavailableStatefulSet featuregate.Feature = "MaxUnavailableStatefulSet"
+	// Enables maxUnavailable for PetSet
+	MaxUnavailablePetSet featuregate.Feature = "MaxUnavailablePetSet"
 
 	// owner: @cynepco3hahue(alukiano) @cezaryzukowski @k-wiatrzyk
 	// alpha: v1.21
@@ -836,15 +836,15 @@ const (
 	// alpha: v1.22
 	// beta: v1.27
 	//
-	// Enables policies controlling deletion of PVCs created by a StatefulSet.
-	StatefulSetAutoDeletePVC featuregate.Feature = "StatefulSetAutoDeletePVC"
+	// Enables policies controlling deletion of PVCs created by a PetSet.
+	PetSetAutoDeletePVC featuregate.Feature = "PetSetAutoDeletePVC"
 
 	// owner: @psch
 	// alpha: v1.26
 	// beta: v1.27
 	//
-	// Enables a StatefulSet to start from an arbitrary non zero ordinal
-	StatefulSetStartOrdinal featuregate.Feature = "StatefulSetStartOrdinal"
+	// Enables a PetSet to start from an arbitrary non zero ordinal
+	PetSetStartOrdinal featuregate.Feature = "PetSetStartOrdinal"
 
 	// owner: @robscott
 	// kep: https://kep.k8s.io/2433
@@ -1120,7 +1120,7 @@ var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureS
 
 	MatchLabelKeysInPodTopologySpread: {Default: true, PreRelease: featuregate.Beta},
 
-	MaxUnavailableStatefulSet: {Default: false, PreRelease: featuregate.Alpha},
+	MaxUnavailablePetSet: {Default: false, PreRelease: featuregate.Alpha},
 
 	MemoryManager: {Default: true, PreRelease: featuregate.Beta},
 
@@ -1198,9 +1198,9 @@ var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureS
 
 	StableLoadBalancerNodeSet: {Default: true, PreRelease: featuregate.Beta},
 
-	StatefulSetAutoDeletePVC: {Default: true, PreRelease: featuregate.Beta},
+	PetSetAutoDeletePVC: {Default: true, PreRelease: featuregate.Beta},
 
-	StatefulSetStartOrdinal: {Default: true, PreRelease: featuregate.Beta},
+	PetSetStartOrdinal: {Default: true, PreRelease: featuregate.Beta},
 
 	TopologyAwareHints: {Default: true, PreRelease: featuregate.Beta},
 

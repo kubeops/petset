@@ -22,7 +22,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	config "kubeops.dev/statefulset/pkg/controller/statefulset/config"
+	config "kubeops.dev/petset/pkg/controller/petset/config"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	conversion "k8s.io/apimachinery/pkg/conversion"

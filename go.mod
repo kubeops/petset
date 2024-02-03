@@ -1,4 +1,4 @@
-module kubeops.dev/statefulset
+module kubeops.dev/petset
 
 go 1.21.5
 

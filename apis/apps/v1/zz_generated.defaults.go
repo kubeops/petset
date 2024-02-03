@@ -29,12 +29,12 @@ import (
 // Public to allow building arbitrary schemes.
 // All generated defaulters are covering - they call all nested defaulters.
 func RegisterDefaults(scheme *runtime.Scheme) error {
-	scheme.AddTypeDefaultingFunc(&StatefulSet{}, func(obj interface{}) { SetObjectDefaults_StatefulSet(obj.(*StatefulSet)) })
-	scheme.AddTypeDefaultingFunc(&StatefulSetList{}, func(obj interface{}) { SetObjectDefaults_StatefulSetList(obj.(*StatefulSetList)) })
+	scheme.AddTypeDefaultingFunc(&PetSet{}, func(obj interface{}) { SetObjectDefaults_PetSet(obj.(*PetSet)) })
+	scheme.AddTypeDefaultingFunc(&PetSetList{}, func(obj interface{}) { SetObjectDefaults_PetSetList(obj.(*PetSetList)) })
 	return nil
 }
 
-func SetObjectDefaults_StatefulSet(in *StatefulSet) {
+func SetObjectDefaults_PetSet(in *PetSet) {
 	for i := range in.Spec.Template.Spec.InitContainers {
 		a := &in.Spec.Template.Spec.InitContainers[i]
 		for j := range a.Ports {
@@ -136,9 +136,9 @@ func SetObjectDefaults_StatefulSet(in *StatefulSet) {
 	}
 }
 
-func SetObjectDefaults_StatefulSetList(in *StatefulSetList) {
+func SetObjectDefaults_PetSetList(in *PetSetList) {
 	for i := range in.Items {
 		a := &in.Items[i]
-		SetObjectDefaults_StatefulSet(a)
+		SetObjectDefaults_PetSet(a)
 	}
 }

@@ -19,8 +19,8 @@ package controller
 import (
 	"time"
 
-	"kubeops.dev/statefulset/client/clientset/versioned"
-	apiinformers "kubeops.dev/statefulset/client/informers/externalversions"
+	"kubeops.dev/petset/client/clientset/versioned"
+	apiinformers "kubeops.dev/petset/client/informers/externalversions"
 
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"

@@ -21,7 +21,7 @@ import (
 	"os"
 	"path/filepath"
 
-	appsv1 "kubeops.dev/statefulset/apis/apps/v1"
+	appsv1 "kubeops.dev/petset/apis/apps/v1"
 
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
@@ -88,8 +88,8 @@ func NewCmdWebhook(ctx context.Context) *cobra.Command {
 				os.Exit(1)
 			}
 
-			if err = (&appsv1.StatefulSet{}).SetupWebhookWithManager(mgr); err != nil {
-				setupLog.Error(err, "unable to create webhook", "webhook", "StatefulSet")
+			if err = (&appsv1.PetSet{}).SetupWebhookWithManager(mgr); err != nil {
+				setupLog.Error(err, "unable to create webhook", "webhook", "PetSet")
 				os.Exit(1)
 			}
 

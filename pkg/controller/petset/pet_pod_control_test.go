@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package statefulset
+package petset
 
 import (
 	"context"
@@ -24,10 +24,10 @@ import (
 	"testing"
 	"time"
 
-	api "kubeops.dev/statefulset/apis/apps/v1"
-	// _ "kubeops.dev/statefulset/pkg/apis/apps/install"
-	// _ "kubeops.dev/statefulset/pkg/apis/core/install"
-	"kubeops.dev/statefulset/pkg/features"
+	api "kubeops.dev/petset/apis/apps/v1"
+	// _ "kubeops.dev/petset/pkg/apis/apps/install"
+	// _ "kubeops.dev/petset/pkg/apis/core/install"
+	"kubeops.dev/petset/pkg/features"
 
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -47,8 +47,8 @@ import (
 
 func TestStatefulPodControlCreatesPods(t *testing.T) {
 	recorder := record.NewFakeRecorder(10)
-	set := newStatefulSet(3)
-	pod := newStatefulSetPod(set, 0)
+	set := newPetSet(3)
+	pod := newPetSetPod(set, 0)
 	fakeClient := &fake.Clientset{}
 	claimIndexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	claimLister := corelisters.NewPersistentVolumeClaimLister(claimIndexer)
@@ -81,8 +81,8 @@ func TestStatefulPodControlCreatesPods(t *testing.T) {
 
 func TestStatefulPodControlCreatePodExists(t *testing.T) {
 	recorder := record.NewFakeRecorder(10)
-	set := newStatefulSet(3)
-	pod := newStatefulSetPod(set, 0)
+	set := newPetSet(3)
+	pod := newPetSetPod(set, 0)
 	fakeClient := &fake.Clientset{}
 	pvcs := getPersistentVolumeClaims(set, pod)
 	pvcIndexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
@@ -113,8 +113,8 @@ func TestStatefulPodControlCreatePodExists(t *testing.T) {
 
 func TestStatefulPodControlCreatePodPvcCreateFailure(t *testing.T) {
 	recorder := record.NewFakeRecorder(10)
-	set := newStatefulSet(3)
-	pod := newStatefulSetPod(set, 0)
+	set := newPetSet(3)
+	pod := newPetSetPod(set, 0)
 	fakeClient := &fake.Clientset{}
 	pvcIndexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	pvcLister := corelisters.NewPersistentVolumeClaimLister(pvcIndexer)
@@ -142,8 +142,8 @@ func TestStatefulPodControlCreatePodPvcCreateFailure(t *testing.T) {
 
 func TestStatefulPodControlCreatePodPVCDeleting(t *testing.T) {
 	recorder := record.NewFakeRecorder(10)
-	set := newStatefulSet(3)
-	pod := newStatefulSetPod(set, 0)
+	set := newPetSet(3)
+	pod := newPetSetPod(set, 0)
 	fakeClient := &fake.Clientset{}
 	pvcs := getPersistentVolumeClaims(set, pod)
 	pvcIndexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
@@ -188,8 +188,8 @@ func (f *fakeIndexer) GetByKey(key string) (interface{}, bool, error) {
 
 func TestStatefulPodControlCreatePodPvcGetFailure(t *testing.T) {
 	recorder := record.NewFakeRecorder(10)
-	set := newStatefulSet(3)
-	pod := newStatefulSetPod(set, 0)
+	set := newPetSet(3)
+	pod := newPetSetPod(set, 0)
 	fakeClient := &fake.Clientset{}
 	pvcIndexer := &fakeIndexer{getError: errors.New("API server down")}
 	pvcLister := corelisters.NewPersistentVolumeClaimLister(pvcIndexer)
@@ -217,8 +217,8 @@ func TestStatefulPodControlCreatePodPvcGetFailure(t *testing.T) {
 
 func TestStatefulPodControlCreatePodFailed(t *testing.T) {
 	recorder := record.NewFakeRecorder(10)
-	set := newStatefulSet(3)
-	pod := newStatefulSetPod(set, 0)
+	set := newPetSet(3)
+	pod := newPetSetPod(set, 0)
 	fakeClient := &fake.Clientset{}
 	pvcIndexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	pvcLister := corelisters.NewPersistentVolumeClaimLister(pvcIndexer)
@@ -246,8 +246,8 @@ func TestStatefulPodControlCreatePodFailed(t *testing.T) {
 func TestStatefulPodControlNoOpUpdate(t *testing.T) {
 	_, ctx := ktesting.NewTestContext(t)
 	recorder := record.NewFakeRecorder(10)
-	set := newStatefulSet(3)
-	pod := newStatefulSetPod(set, 0)
+	set := newPetSet(3)
+	pod := newPetSetPod(set, 0)
 	fakeClient := &fake.Clientset{}
 	claims := getPersistentVolumeClaims(set, pod)
 	indexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
@@ -273,8 +273,8 @@ func TestStatefulPodControlNoOpUpdate(t *testing.T) {
 func TestStatefulPodControlUpdatesIdentity(t *testing.T) {
 	_, ctx := ktesting.NewTestContext(t)
 	recorder := record.NewFakeRecorder(10)
-	set := newStatefulSet(3)
-	pod := newStatefulSetPod(set, 0)
+	set := newPetSet(3)
+	pod := newPetSetPod(set, 0)
 	fakeClient := fake.NewSimpleClientset(set, pod)
 	indexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	claimLister := corelisters.NewPersistentVolumeClaimLister(indexer)
@@ -303,11 +303,11 @@ func TestStatefulPodControlUpdatesIdentity(t *testing.T) {
 func TestStatefulPodControlUpdateIdentityFailure(t *testing.T) {
 	_, ctx := ktesting.NewTestContext(t)
 	recorder := record.NewFakeRecorder(10)
-	set := newStatefulSet(3)
-	pod := newStatefulSetPod(set, 0)
+	set := newPetSet(3)
+	pod := newPetSetPod(set, 0)
 	fakeClient := &fake.Clientset{}
 	podIndexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
-	gooPod := newStatefulSetPod(set, 0)
+	gooPod := newPetSetPod(set, 0)
 	gooPod.Name = "goo-0"
 	podIndexer.Add(gooPod)
 	podLister := corelisters.NewPodLister(podIndexer)
@@ -336,8 +336,8 @@ func TestStatefulPodControlUpdateIdentityFailure(t *testing.T) {
 func TestStatefulPodControlUpdatesPodStorage(t *testing.T) {
 	_, ctx := ktesting.NewTestContext(t)
 	recorder := record.NewFakeRecorder(10)
-	set := newStatefulSet(3)
-	pod := newStatefulSetPod(set, 0)
+	set := newPetSet(3)
+	pod := newPetSetPod(set, 0)
 	fakeClient := &fake.Clientset{}
 	pvcIndexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	pvcLister := corelisters.NewPersistentVolumeClaimLister(pvcIndexer)
@@ -384,8 +384,8 @@ func TestStatefulPodControlUpdatesPodStorage(t *testing.T) {
 func TestStatefulPodControlUpdatePodStorageFailure(t *testing.T) {
 	_, ctx := ktesting.NewTestContext(t)
 	recorder := record.NewFakeRecorder(10)
-	set := newStatefulSet(3)
-	pod := newStatefulSetPod(set, 0)
+	set := newPetSet(3)
+	pod := newPetSetPod(set, 0)
 	fakeClient := &fake.Clientset{}
 	pvcIndexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	pvcLister := corelisters.NewPersistentVolumeClaimLister(pvcIndexer)
@@ -422,14 +422,14 @@ func TestStatefulPodControlUpdatePodStorageFailure(t *testing.T) {
 func TestStatefulPodControlUpdatePodConflictSuccess(t *testing.T) {
 	_, ctx := ktesting.NewTestContext(t)
 	recorder := record.NewFakeRecorder(10)
-	set := newStatefulSet(3)
-	pod := newStatefulSetPod(set, 0)
+	set := newPetSet(3)
+	pod := newPetSetPod(set, 0)
 	fakeClient := &fake.Clientset{}
 	podIndexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	podLister := corelisters.NewPodLister(podIndexer)
 	claimIndexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	claimLister := corelisters.NewPersistentVolumeClaimLister(podIndexer)
-	gooPod := newStatefulSetPod(set, 0)
+	gooPod := newPetSetPod(set, 0)
 	gooPod.Labels[apps.StatefulSetPodNameLabel] = "goo-starts"
 	podIndexer.Add(gooPod)
 	claims := getPersistentVolumeClaims(set, gooPod)
@@ -464,8 +464,8 @@ func TestStatefulPodControlUpdatePodConflictSuccess(t *testing.T) {
 
 func TestStatefulPodControlDeletesStatefulPod(t *testing.T) {
 	recorder := record.NewFakeRecorder(10)
-	set := newStatefulSet(3)
-	pod := newStatefulSetPod(set, 0)
+	set := newPetSet(3)
+	pod := newPetSetPod(set, 0)
 	fakeClient := &fake.Clientset{}
 	control := NewStatefulPodControl(fakeClient, nil, nil, recorder)
 	fakeClient.AddReactor("delete", "pods", func(action core.Action) (bool, runtime.Object, error) {
@@ -484,8 +484,8 @@ func TestStatefulPodControlDeletesStatefulPod(t *testing.T) {
 
 func TestStatefulPodControlDeleteFailure(t *testing.T) {
 	recorder := record.NewFakeRecorder(10)
-	set := newStatefulSet(3)
-	pod := newStatefulSetPod(set, 0)
+	set := newPetSet(3)
+	pod := newPetSetPod(set, 0)
 	fakeClient := &fake.Clientset{}
 	control := NewStatefulPodControl(fakeClient, nil, nil, recorder)
 	fakeClient.AddReactor("delete", "pods", func(action core.Action) (bool, runtime.Object, error) {
@@ -509,8 +509,8 @@ func TestStatefulPodControlClaimsMatchDeletionPolcy(t *testing.T) {
 	fakeClient := &fake.Clientset{}
 	indexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	claimLister := corelisters.NewPersistentVolumeClaimLister(indexer)
-	set := newStatefulSet(3)
-	pod := newStatefulSetPod(set, 0)
+	set := newPetSet(3)
+	pod := newPetSetPod(set, 0)
 	claims := getPersistentVolumeClaims(set, pod)
 	for k := range claims {
 		claim := claims[k]
@@ -542,7 +542,7 @@ func TestStatefulPodControlUpdatePodClaimForRetentionPolicy(t *testing.T) {
 	// tests the wiring from the pod control to that method.
 	testFn := func(t *testing.T) {
 		_, ctx := ktesting.NewTestContext(t)
-		defer featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StatefulSetAutoDeletePVC, true)()
+		defer featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.PetSetAutoDeletePVC, true)()
 		fakeClient := &fake.Clientset{}
 		indexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 		claimLister := corelisters.NewPersistentVolumeClaimLister(indexer)
@@ -551,9 +551,9 @@ func TestStatefulPodControlUpdatePodClaimForRetentionPolicy(t *testing.T) {
 			indexer.Update(update.GetObject())
 			return true, update.GetObject(), nil
 		})
-		set := newStatefulSet(3)
+		set := newPetSet(3)
 		set.GetObjectMeta().SetUID("set-123")
-		pod := newStatefulSetPod(set, 0)
+		pod := newPetSetPod(set, 0)
 		claims := getPersistentVolumeClaims(set, pod)
 		for k := range claims {
 			claim := claims[k]
@@ -567,7 +567,7 @@ func TestStatefulPodControlUpdatePodClaimForRetentionPolicy(t *testing.T) {
 		if err := control.UpdatePodClaimForRetentionPolicy(ctx, set, pod); err != nil {
 			t.Errorf("Unexpected error for UpdatePodClaimForRetentionPolicy (retain): %v", err)
 		}
-		expectRef := utilfeature.DefaultFeatureGate.Enabled(features.StatefulSetAutoDeletePVC)
+		expectRef := utilfeature.DefaultFeatureGate.Enabled(features.PetSetAutoDeletePVC)
 		for k := range claims {
 			claim, err := claimLister.PersistentVolumeClaims(claims[k].Namespace).Get(claims[k].Name)
 			if err != nil {
@@ -578,12 +578,12 @@ func TestStatefulPodControlUpdatePodClaimForRetentionPolicy(t *testing.T) {
 			}
 		}
 	}
-	t.Run("StatefulSetAutoDeletePVCEnabled", func(t *testing.T) {
-		defer featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StatefulSetAutoDeletePVC, true)()
+	t.Run("PetSetAutoDeletePVCEnabled", func(t *testing.T) {
+		defer featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.PetSetAutoDeletePVC, true)()
 		testFn(t)
 	})
-	t.Run("StatefulSetAutoDeletePVCDisabled", func(t *testing.T) {
-		defer featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StatefulSetAutoDeletePVC, false)()
+	t.Run("PetSetAutoDeletePVCDisabled", func(t *testing.T) {
+		defer featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.PetSetAutoDeletePVC, false)()
 		testFn(t)
 	})
 }
@@ -642,7 +642,7 @@ func TestPodClaimIsStale(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		set := api.StatefulSet{}
+		set := api.PetSet{}
 		set.Name = "set"
 		set.Namespace = "default"
 		set.Spec.PersistentVolumeClaimRetentionPolicy = &apps.StatefulSetPersistentVolumeClaimRetentionPolicy{
@@ -693,12 +693,12 @@ func TestStatefulPodControlRetainDeletionPolicyUpdate(t *testing.T) {
 	testFn := func(t *testing.T) {
 		_, ctx := ktesting.NewTestContext(t)
 		recorder := record.NewFakeRecorder(10)
-		set := newStatefulSet(1)
+		set := newPetSet(1)
 		set.Spec.PersistentVolumeClaimRetentionPolicy = &apps.StatefulSetPersistentVolumeClaimRetentionPolicy{
 			WhenDeleted: apps.RetainPersistentVolumeClaimRetentionPolicyType,
 			WhenScaled:  apps.RetainPersistentVolumeClaimRetentionPolicyType,
 		}
-		pod := newStatefulSetPod(set, 0)
+		pod := newPetSetPod(set, 0)
 		fakeClient := &fake.Clientset{}
 		podIndexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 		podLister := corelisters.NewPodLister(podIndexer)
@@ -725,7 +725,7 @@ func TestStatefulPodControlRetainDeletionPolicyUpdate(t *testing.T) {
 			}
 		}
 		events := collectEvents(recorder.Events)
-		if utilfeature.DefaultFeatureGate.Enabled(features.StatefulSetAutoDeletePVC) {
+		if utilfeature.DefaultFeatureGate.Enabled(features.PetSetAutoDeletePVC) {
 			if eventCount := len(events); eventCount != 1 {
 				t.Errorf("delete failed: got %d events, but want 1", eventCount)
 			}
@@ -735,12 +735,12 @@ func TestStatefulPodControlRetainDeletionPolicyUpdate(t *testing.T) {
 			}
 		}
 	}
-	t.Run("StatefulSetAutoDeletePVCEnabled", func(t *testing.T) {
-		defer featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StatefulSetAutoDeletePVC, true)()
+	t.Run("PetSetAutoDeletePVCEnabled", func(t *testing.T) {
+		defer featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.PetSetAutoDeletePVC, true)()
 		testFn(t)
 	})
-	t.Run("StatefulSetAutoDeletePVCDisabled", func(t *testing.T) {
-		defer featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StatefulSetAutoDeletePVC, false)()
+	t.Run("PetSetAutoDeletePVCDisabled", func(t *testing.T) {
+		defer featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.PetSetAutoDeletePVC, false)()
 		testFn(t)
 	})
 }
@@ -748,15 +748,15 @@ func TestStatefulPodControlRetainDeletionPolicyUpdate(t *testing.T) {
 func TestStatefulPodControlRetentionPolicyUpdate(t *testing.T) {
 	_, ctx := ktesting.NewTestContext(t)
 	// Only applicable when the feature gate is on; the off case is tested in TestStatefulPodControlRetainRetentionPolicyUpdate.
-	defer featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StatefulSetAutoDeletePVC, true)()
+	defer featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.PetSetAutoDeletePVC, true)()
 
 	recorder := record.NewFakeRecorder(10)
-	set := newStatefulSet(1)
+	set := newPetSet(1)
 	set.Spec.PersistentVolumeClaimRetentionPolicy = &apps.StatefulSetPersistentVolumeClaimRetentionPolicy{
 		WhenDeleted: apps.DeletePersistentVolumeClaimRetentionPolicyType,
 		WhenScaled:  apps.RetainPersistentVolumeClaimRetentionPolicyType,
 	}
-	pod := newStatefulSetPod(set, 0)
+	pod := newPetSetPod(set, 0)
 	fakeClient := &fake.Clientset{}
 	podIndexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	claimIndexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
@@ -797,15 +797,15 @@ func TestStatefulPodControlRetentionPolicyUpdate(t *testing.T) {
 func TestStatefulPodControlRetentionPolicyUpdateMissingClaims(t *testing.T) {
 	_, ctx := ktesting.NewTestContext(t)
 	// Only applicable when the feature gate is on.
-	defer featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StatefulSetAutoDeletePVC, true)()
+	defer featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.PetSetAutoDeletePVC, true)()
 
 	recorder := record.NewFakeRecorder(10)
-	set := newStatefulSet(1)
+	set := newPetSet(1)
 	set.Spec.PersistentVolumeClaimRetentionPolicy = &apps.StatefulSetPersistentVolumeClaimRetentionPolicy{
 		WhenDeleted: apps.DeletePersistentVolumeClaimRetentionPolicyType,
 		WhenScaled:  apps.RetainPersistentVolumeClaimRetentionPolicyType,
 	}
-	pod := newStatefulSetPod(set, 0)
+	pod := newPetSetPod(set, 0)
 	fakeClient := &fake.Clientset{}
 	podIndexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	podLister := corelisters.NewPodLister(podIndexer)

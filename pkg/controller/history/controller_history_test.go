@@ -25,9 +25,9 @@ import (
 	"testing"
 	"time"
 
-	// "kubeops.dev/statefulset/pkg/api/legacyscheme"
-	api "kubeops.dev/statefulset/apis/apps/v1"
-	"kubeops.dev/statefulset/pkg/controller"
+	// "kubeops.dev/petset/pkg/api/legacyscheme"
+	api "kubeops.dev/petset/apis/apps/v1"
+	"kubeops.dev/petset/pkg/controller"
 
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -80,8 +80,8 @@ func TestRealHistory_ListControllerRevisions(t *testing.T) {
 			t.Errorf("%s: want %v got %v", test.name, test.want, got)
 		}
 	}
-	ss1 := newStatefulSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
-	ss2 := newStatefulSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
+	ss1 := newPetSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
+	ss2 := newPetSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
 	sel1, err := metav1.LabelSelectorAsSelector(ss1.Spec.Selector)
 	if err != nil {
 		t.Fatal(err)
@@ -177,8 +177,8 @@ func TestFakeHistory_ListControllerRevisions(t *testing.T) {
 			t.Errorf("%s: want %v got %v", test.name, test.want, got)
 		}
 	}
-	ss1 := newStatefulSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
-	ss2 := newStatefulSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
+	ss1 := newPetSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
+	ss2 := newPetSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
 	sel1, err := metav1.LabelSelectorAsSelector(ss1.Spec.Selector)
 	if err != nil {
 		t.Fatal(err)
@@ -297,9 +297,9 @@ func TestRealHistory_CreateControllerRevision(t *testing.T) {
 			t.Errorf("%s: wanted %s got %s", test.name, test.revision.Name, created.Name)
 		}
 	}
-	ss1 := newStatefulSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
+	ss1 := newPetSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
 	ss1.Status.CollisionCount = new(int32)
-	ss2 := newStatefulSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
+	ss2 := newPetSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
 	ss2.Status.CollisionCount = new(int32)
 	ss1Rev1, err := NewControllerRevision(ss1, parentKind, ss1.Spec.Template.Labels, rawTemplate(&ss1.Spec.Template), 1, ss1.Status.CollisionCount)
 	if err != nil {
@@ -429,9 +429,9 @@ func TestFakeHistory_CreateControllerRevision(t *testing.T) {
 			t.Errorf("%s: wanted %s got %s", test.name, test.revision.Name, created.Name)
 		}
 	}
-	ss1 := newStatefulSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
+	ss1 := newPetSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
 	ss1.Status.CollisionCount = new(int32)
-	ss2 := newStatefulSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
+	ss2 := newPetSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
 	ss2.Status.CollisionCount = new(int32)
 	ss1Rev1, err := NewControllerRevision(ss1, parentKind, ss1.Spec.Template.Labels, rawTemplate(&ss1.Spec.Template), 1, ss1.Status.CollisionCount)
 	if err != nil {
@@ -563,7 +563,7 @@ func TestRealHistory_UpdateControllerRevision(t *testing.T) {
 			t.Errorf("%s: expected error", test.name)
 		}
 	}
-	ss1 := newStatefulSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
+	ss1 := newPetSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
 	ss1.Status.CollisionCount = new(int32)
 	ss1Rev1, err := NewControllerRevision(ss1, parentKind, ss1.Spec.Template.Labels, rawTemplate(&ss1.Spec.Template), 1, ss1.Status.CollisionCount)
 	if err != nil {
@@ -688,7 +688,7 @@ func TestFakeHistory_UpdateControllerRevision(t *testing.T) {
 			t.Errorf("%s: expected error", test.name)
 		}
 	}
-	ss1 := newStatefulSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
+	ss1 := newPetSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
 	ss1.Status.CollisionCount = new(int32)
 
 	ss1Rev1, err := NewControllerRevision(ss1, parentKind, ss1.Spec.Template.Labels, rawTemplate(&ss1.Spec.Template), 1, ss1.Status.CollisionCount)
@@ -773,9 +773,9 @@ func TestRealHistory_DeleteControllerRevision(t *testing.T) {
 			t.Errorf("%s: expected error", test.name)
 		}
 	}
-	ss1 := newStatefulSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
+	ss1 := newPetSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
 	ss1.Status.CollisionCount = new(int32)
-	ss2 := newStatefulSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
+	ss2 := newPetSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
 	ss2.Status.CollisionCount = new(int32)
 	ss1Rev1, err := NewControllerRevision(ss1, parentKind, ss1.Spec.Template.Labels, rawTemplate(&ss1.Spec.Template), 1, ss1.Status.CollisionCount)
 	if err != nil {
@@ -877,9 +877,9 @@ func TestFakeHistory_DeleteControllerRevision(t *testing.T) {
 			t.Errorf("%s: expected error", test.name)
 		}
 	}
-	ss1 := newStatefulSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
+	ss1 := newPetSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
 	ss1.Status.CollisionCount = new(int32)
-	ss2 := newStatefulSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
+	ss2 := newPetSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
 	ss2.Status.CollisionCount = new(int32)
 	ss1Rev1, err := NewControllerRevision(ss1, parentKind, ss1.Spec.Template.Labels, rawTemplate(&ss1.Spec.Template), 1, ss1.Status.CollisionCount)
 	if err != nil {
@@ -1019,9 +1019,9 @@ func TestRealHistory_AdoptControllerRevision(t *testing.T) {
 		}
 	}
 
-	ss1 := newStatefulSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
+	ss1 := newPetSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
 	ss1.Status.CollisionCount = new(int32)
-	ss2 := newStatefulSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
+	ss2 := newPetSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
 	ss2.Status.CollisionCount = new(int32)
 	ss1Rev1, err := NewControllerRevision(ss1, parentKind, ss1.Spec.Template.Labels, rawTemplate(&ss1.Spec.Template), 1, ss1.Status.CollisionCount)
 	if err != nil {
@@ -1125,9 +1125,9 @@ func TestFakeHistory_AdoptControllerRevision(t *testing.T) {
 		}
 	}
 
-	ss1 := newStatefulSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
+	ss1 := newPetSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
 	ss1.Status.CollisionCount = new(int32)
-	ss2 := newStatefulSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
+	ss2 := newPetSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
 	ss2.Status.CollisionCount = new(int32)
 	ss1Rev1, err := NewControllerRevision(ss1, parentKind, ss1.Spec.Template.Labels, rawTemplate(&ss1.Spec.Template), 1, ss1.Status.CollisionCount)
 	if err != nil {
@@ -1274,8 +1274,8 @@ func TestRealHistory_ReleaseControllerRevision(t *testing.T) {
 		}
 	}
 
-	ss1 := newStatefulSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
-	ss2 := newStatefulSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
+	ss1 := newPetSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
+	ss2 := newPetSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
 	ss1Rev1, err := NewControllerRevision(ss1, parentKind, ss1.Spec.Template.Labels, rawTemplate(&ss1.Spec.Template), 1, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -1395,9 +1395,9 @@ func TestFakeHistory_ReleaseControllerRevision(t *testing.T) {
 		}
 	}
 
-	ss1 := newStatefulSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
+	ss1 := newPetSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
 	ss1.Status.CollisionCount = new(int32)
-	ss2 := newStatefulSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
+	ss2 := newPetSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
 	ss2.Status.CollisionCount = new(int32)
 	ss1Rev1, err := NewControllerRevision(ss1, parentKind, ss1.Spec.Template.Labels, rawTemplate(&ss1.Spec.Template), 1, ss1.Status.CollisionCount)
 	if err != nil {
@@ -1492,9 +1492,9 @@ func TestFindEqualRevisions(t *testing.T) {
 			}
 		}
 	}
-	ss1 := newStatefulSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
+	ss1 := newPetSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
 	ss1.Status.CollisionCount = new(int32)
-	ss2 := newStatefulSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
+	ss2 := newPetSet(3, "ss2", types.UID("ss2"), map[string]string{"goo": "car"})
 	ss2.Status.CollisionCount = new(int32)
 	ss1Rev1, err := NewControllerRevision(ss1, parentKind, ss1.Spec.Template.Labels, rawTemplate(&ss1.Spec.Template), 1, ss1.Status.CollisionCount)
 	if err != nil {
@@ -1558,7 +1558,7 @@ func TestSortControllerRevisions(t *testing.T) {
 			}
 		})
 	}
-	ss1 := newStatefulSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
+	ss1 := newPetSet(3, "ss1", types.UID("ss1"), map[string]string{"foo": "bar"})
 	ss1.Status.CollisionCount = new(int32)
 
 	ss1Rev1, err := NewControllerRevision(ss1, parentKind, ss1.Spec.Template.Labels, rawTemplate(&ss1.Spec.Template), 1, ss1.Status.CollisionCount)
@@ -1624,7 +1624,7 @@ func TestSortControllerRevisions(t *testing.T) {
 	}
 }
 
-func newStatefulSet(replicas int, name string, uid types.UID, labels map[string]string) *api.StatefulSet {
+func newPetSet(replicas int, name string, uid types.UID, labels map[string]string) *api.PetSet {
 	// Converting all the map-only selectors to set-based selectors.
 	var testMatchExpressions []metav1.LabelSelectorRequirement
 	for key, value := range labels {
@@ -1635,9 +1635,9 @@ func newStatefulSet(replicas int, name string, uid types.UID, labels map[string]
 		}
 		testMatchExpressions = append(testMatchExpressions, sel)
 	}
-	return &api.StatefulSet{
+	return &api.PetSet{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "StatefulSet",
+			Kind:       "PetSet",
 			APIVersion: "apps/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -1645,7 +1645,7 @@ func newStatefulSet(replicas int, name string, uid types.UID, labels map[string]
 			Namespace: v1.NamespaceDefault,
 			UID:       uid,
 		},
-		Spec: api.StatefulSetSpec{
+		Spec: api.PetSetSpec{
 			Selector: &metav1.LabelSelector{
 				// Purposely leaving MatchLabels nil, so to ensure it will break if any link
 				// in the chain ignores the set-based MatchExpressions.
@@ -1695,7 +1695,7 @@ func newStatefulSet(replicas int, name string, uid types.UID, labels map[string]
 	}
 }
 
-var parentKind = api.SchemeGroupVersion.WithKind("StatefulSet")
+var parentKind = api.SchemeGroupVersion.WithKind("PetSet")
 
 func rawTemplate(template *api.PodTemplateSpec) runtime.RawExtension {
 	buf := new(bytes.Buffer)

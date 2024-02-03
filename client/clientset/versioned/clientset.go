@@ -25,7 +25,7 @@ import (
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
-	appsv1 "kubeops.dev/statefulset/client/clientset/versioned/typed/apps/v1"
+	appsv1 "kubeops.dev/petset/client/clientset/versioned/typed/apps/v1"
 )
 
 type Interface interface {

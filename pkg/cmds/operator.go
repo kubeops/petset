@@ -19,7 +19,7 @@ package cmds
 import (
 	"context"
 
-	"kubeops.dev/statefulset/pkg/cmds/server"
+	"kubeops.dev/petset/pkg/cmds/server"
 
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/errors"

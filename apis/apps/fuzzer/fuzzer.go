@@ -17,7 +17,7 @@ limitations under the License.
 package fuzzer
 
 import (
-	v1 "kubeops.dev/statefulset/apis/apps/v1"
+	v1 "kubeops.dev/petset/apis/apps/v1"
 
 	fuzz "github.com/google/gofuzz"
 	runtimeserializer "k8s.io/apimachinery/pkg/runtime/serializer"
@@ -27,7 +27,7 @@ import (
 var Funcs = func(codecs runtimeserializer.CodecFactory) []interface{} {
 	return []interface{}{
 		// v1
-		func(s *v1.StatefulSet, c fuzz.Continue) {
+		func(s *v1.PetSet, c fuzz.Continue) {
 			c.FuzzNoCustom(s) // fuzz self without calling this function again
 		},
 	}

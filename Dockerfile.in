@@ -14,7 +14,7 @@
 
 FROM {ARG_FROM}
 
-LABEL org.opencontainers.image.source https://github.com/kubeops/statefulset
+LABEL org.opencontainers.image.source https://github.com/kubeops/petset
 
 RUN set -x \
   && apk add --update --upgrade --no-cache pcre2 ca-certificates tzdata \

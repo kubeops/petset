@@ -24,7 +24,7 @@ import (
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	appsv1 "kubeops.dev/statefulset/apis/apps/v1"
+	appsv1 "kubeops.dev/petset/apis/apps/v1"
 )
 
 var scheme = runtime.NewScheme()

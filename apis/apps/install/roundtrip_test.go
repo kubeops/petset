@@ -19,7 +19,7 @@ package install
 import (
 	"testing"
 
-	identityfuzzer "kubeops.dev/statefulset/apis/apps/fuzzer"
+	identityfuzzer "kubeops.dev/petset/apis/apps/fuzzer"
 
 	"k8s.io/apimachinery/pkg/api/apitesting/roundtrip"
 )

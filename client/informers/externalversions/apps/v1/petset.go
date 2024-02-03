@@ -32,58 +32,59 @@ import (
 	v1 "kubeops.dev/petset/client/listers/apps/v1"
 )
 
-// PlacementPolicyInformer provides access to a shared informer and lister for
-// PlacementPolicies.
-type PlacementPolicyInformer interface {
+// PetSetInformer provides access to a shared informer and lister for
+// PetSets.
+type PetSetInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.PlacementPolicyLister
+	Lister() v1.PetSetLister
 }
 
-type placementPolicyInformer struct {
+type petSetInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
+	namespace        string
 }
 
-// NewPlacementPolicyInformer constructs a new informer for PlacementPolicy type.
+// NewPetSetInformer constructs a new informer for PetSet type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewPlacementPolicyInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredPlacementPolicyInformer(client, resyncPeriod, indexers, nil)
+func NewPetSetInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredPetSetInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredPlacementPolicyInformer constructs a new informer for PlacementPolicy type.
+// NewFilteredPetSetInformer constructs a new informer for PetSet type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredPlacementPolicyInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredPetSetInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.AppsV1().PlacementPolicies().List(context.TODO(), options)
+				return client.AppsV1().PetSets(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.AppsV1().PlacementPolicies().Watch(context.TODO(), options)
+				return client.AppsV1().PetSets(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&appsv1.PlacementPolicy{},
+		&appsv1.PetSet{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *placementPolicyInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredPlacementPolicyInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *petSetInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredPetSetInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *placementPolicyInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&appsv1.PlacementPolicy{}, f.defaultInformer)
+func (f *petSetInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&appsv1.PetSet{}, f.defaultInformer)
 }
 
-func (f *placementPolicyInformer) Lister() v1.PlacementPolicyLister {
-	return v1.NewPlacementPolicyLister(f.Informer().GetIndexer())
+func (f *petSetInformer) Lister() v1.PetSetLister {
+	return v1.NewPetSetLister(f.Informer().GetIndexer())
 }

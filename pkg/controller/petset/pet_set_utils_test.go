@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package statefulset
+package petset
 
 import (
 	"fmt"
@@ -26,9 +26,9 @@ import (
 	"testing"
 	"time"
 
-	api "kubeops.dev/statefulset/apis/apps/v1"
-	podutil "kubeops.dev/statefulset/pkg/api/v1/pod"
-	"kubeops.dev/statefulset/pkg/controller/history"
+	api "kubeops.dev/petset/apis/apps/v1"
+	podutil "kubeops.dev/petset/pkg/api/v1/pod"
+	"kubeops.dev/petset/pkg/controller/history"
 
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -54,7 +54,7 @@ func (r *noopRecorder) AnnotatedEventf(object runtime.Object, annotations map[st
 }
 
 // getClaimPodName gets the name of the Pod associated with the Claim, or an empty string if this doesn't look matching.
-func getClaimPodName(set *api.StatefulSet, claim *v1.PersistentVolumeClaim) string {
+func getClaimPodName(set *api.PetSet, claim *v1.PersistentVolumeClaim) string {
 	podName := ""
 
 	statefulClaimRegex := regexp.MustCompile(fmt.Sprintf(".*-(%s-[0-9]+)$", set.Name))
@@ -66,8 +66,8 @@ func getClaimPodName(set *api.StatefulSet, claim *v1.PersistentVolumeClaim) stri
 }
 
 func TestGetParentNameAndOrdinal(t *testing.T) {
-	set := newStatefulSet(3)
-	pod := newStatefulSetPod(set, 1)
+	set := newPetSet(3)
+	pod := newPetSetPod(set, 1)
 	if parent, ordinal := getParentNameAndOrdinal(pod); parent != set.Name {
 		t.Errorf("Extracted the wrong parent name expected %s found %s", set.Name, parent)
 	} else if ordinal != 1 {
@@ -82,7 +82,7 @@ func TestGetParentNameAndOrdinal(t *testing.T) {
 }
 
 func TestGetClaimPodName(t *testing.T) {
-	set := api.StatefulSet{}
+	set := api.PetSet{}
 	set.Name = "my-set"
 	claim := v1.PersistentVolumeClaim{}
 	claim.Name = "volume-my-set-2"
@@ -104,10 +104,10 @@ func TestGetClaimPodName(t *testing.T) {
 }
 
 func TestIsMemberOf(t *testing.T) {
-	set := newStatefulSet(3)
-	set2 := newStatefulSet(3)
+	set := newPetSet(3)
+	set2 := newPetSet(3)
 	set2.Name = "foo2"
-	pod := newStatefulSetPod(set, 1)
+	pod := newPetSetPod(set, 1)
 	if !isMemberOf(set, pod) {
 		t.Error("isMemberOf returned false negative")
 	}
@@ -117,8 +117,8 @@ func TestIsMemberOf(t *testing.T) {
 }
 
 func TestIdentityMatches(t *testing.T) {
-	set := newStatefulSet(3)
-	pod := newStatefulSetPod(set, 1)
+	set := newPetSet(3)
+	pod := newPetSetPod(set, 1)
 	if !identityMatches(set, pod) {
 		t.Error("Newly created Pod has a bad identity")
 	}
@@ -126,12 +126,12 @@ func TestIdentityMatches(t *testing.T) {
 	if identityMatches(set, pod) {
 		t.Error("identity matches for a Pod with the wrong name")
 	}
-	pod = newStatefulSetPod(set, 1)
+	pod = newPetSetPod(set, 1)
 	pod.Namespace = ""
 	if identityMatches(set, pod) {
 		t.Error("identity matches for a Pod with the wrong namespace")
 	}
-	pod = newStatefulSetPod(set, 1)
+	pod = newPetSetPod(set, 1)
 	delete(pod.Labels, apps.StatefulSetPodNameLabel)
 	if identityMatches(set, pod) {
 		t.Error("identity matches for a Pod with the wrong statefulSetPodNameLabel")
@@ -139,8 +139,8 @@ func TestIdentityMatches(t *testing.T) {
 }
 
 func TestStorageMatches(t *testing.T) {
-	set := newStatefulSet(3)
-	pod := newStatefulSetPod(set, 1)
+	set := newPetSet(3)
+	pod := newPetSetPod(set, 1)
 	if !storageMatches(set, pod) {
 		t.Error("Newly created Pod has a invalid storage")
 	}
@@ -148,14 +148,14 @@ func TestStorageMatches(t *testing.T) {
 	if storageMatches(set, pod) {
 		t.Error("Pod with invalid Volumes has valid storage")
 	}
-	pod = newStatefulSetPod(set, 1)
+	pod = newPetSetPod(set, 1)
 	for i := range pod.Spec.Volumes {
 		pod.Spec.Volumes[i].PersistentVolumeClaim = nil
 	}
 	if storageMatches(set, pod) {
 		t.Error("Pod with invalid Volumes claim valid storage")
 	}
-	pod = newStatefulSetPod(set, 1)
+	pod = newPetSetPod(set, 1)
 	for i := range pod.Spec.Volumes {
 		if pod.Spec.Volumes[i].PersistentVolumeClaim != nil {
 			pod.Spec.Volumes[i].PersistentVolumeClaim.ClaimName = "foo"
@@ -164,7 +164,7 @@ func TestStorageMatches(t *testing.T) {
 	if storageMatches(set, pod) {
 		t.Error("Pod with invalid Volumes claim valid storage")
 	}
-	pod = newStatefulSetPod(set, 1)
+	pod = newPetSetPod(set, 1)
 	pod.Name = "bar"
 	if storageMatches(set, pod) {
 		t.Error("Pod with invalid ordinal has valid storage")
@@ -172,8 +172,8 @@ func TestStorageMatches(t *testing.T) {
 }
 
 func TestUpdateIdentity(t *testing.T) {
-	set := newStatefulSet(3)
-	pod := newStatefulSetPod(set, 1)
+	set := newPetSet(3)
+	pod := newPetSetPod(set, 1)
 	if !identityMatches(set, pod) {
 		t.Error("Newly created Pod has a bad identity")
 	}
@@ -193,8 +193,8 @@ func TestUpdateIdentity(t *testing.T) {
 }
 
 func TestUpdateStorage(t *testing.T) {
-	set := newStatefulSet(3)
-	pod := newStatefulSetPod(set, 1)
+	set := newPetSet(3)
+	pod := newPetSetPod(set, 1)
 	if !storageMatches(set, pod) {
 		t.Error("Newly created Pod has a invalid storage")
 	}
@@ -206,7 +206,7 @@ func TestUpdateStorage(t *testing.T) {
 	if !storageMatches(set, pod) {
 		t.Error("updateStorage failed to recreate volumes")
 	}
-	pod = newStatefulSetPod(set, 1)
+	pod = newPetSetPod(set, 1)
 	for i := range pod.Spec.Volumes {
 		pod.Spec.Volumes[i].PersistentVolumeClaim = nil
 	}
@@ -217,7 +217,7 @@ func TestUpdateStorage(t *testing.T) {
 	if !storageMatches(set, pod) {
 		t.Error("updateStorage failed to recreate volume claims")
 	}
-	pod = newStatefulSetPod(set, 1)
+	pod = newPetSetPod(set, 1)
 	for i := range pod.Spec.Volumes {
 		if pod.Spec.Volumes[i].PersistentVolumeClaim != nil {
 			pod.Spec.Volumes[i].PersistentVolumeClaim.ClaimName = "foo"
@@ -242,7 +242,7 @@ func TestGetPersistentVolumeClaimRetentionPolicy(t *testing.T) {
 		WhenDeleted: apps.RetainPersistentVolumeClaimRetentionPolicyType,
 	}
 
-	set := api.StatefulSet{}
+	set := api.PetSet{}
 	set.Spec.PersistentVolumeClaimRetentionPolicy = &retainPolicy
 	got := getPersistentVolumeClaimRetentionPolicy(&set)
 	if got.WhenScaled != apps.RetainPersistentVolumeClaimRetentionPolicyType || got.WhenDeleted != apps.RetainPersistentVolumeClaimRetentionPolicyType {
@@ -328,7 +328,7 @@ func TestClaimOwnerMatchesSetAndPod(t *testing.T) {
 					pod := v1.Pod{}
 					pod.Name = fmt.Sprintf("pod-%d", tc.ordinal)
 					pod.GetObjectMeta().SetUID("pod-123")
-					set := api.StatefulSet{}
+					set := api.PetSet{}
 					set.Name = "stateful-set"
 					set.GetObjectMeta().SetUID("ss-456")
 					set.Spec.PersistentVolumeClaimRetentionPolicy = &apps.StatefulSetPersistentVolumeClaimRetentionPolicy{
@@ -425,7 +425,7 @@ func TestUpdateClaimOwnerRefForSetAndPod(t *testing.T) {
 			for _, hasSetRef := range []bool{true, false} {
 				_, ctx := ktesting.NewTestContext(t)
 				logger := klog.FromContext(ctx)
-				set := api.StatefulSet{}
+				set := api.PetSet{}
 				set.Name = "ss"
 				numReplicas := int32(5)
 				set.Spec.Replicas = &numReplicas
@@ -583,8 +583,8 @@ func TestRemoveOwnerRef(t *testing.T) {
 }
 
 func TestIsRunningAndReady(t *testing.T) {
-	set := newStatefulSet(3)
-	pod := newStatefulSetPod(set, 1)
+	set := newPetSet(3)
+	pod := newPetSetPod(set, 1)
 	if isRunningAndReady(pod) {
 		t.Error("isRunningAndReady does not respect Pod phase")
 	}
@@ -600,11 +600,11 @@ func TestIsRunningAndReady(t *testing.T) {
 }
 
 func TestAscendingOrdinal(t *testing.T) {
-	set := newStatefulSet(10)
+	set := newPetSet(10)
 	pods := make([]*v1.Pod, 10)
 	perm := rand.Perm(10)
 	for i, v := range perm {
-		pods[i] = newStatefulSetPod(set, v)
+		pods[i] = newPetSetPod(set, v)
 	}
 	sort.Sort(ascendingOrdinal(pods))
 	if !sort.IsSorted(ascendingOrdinal(pods)) {
@@ -612,30 +612,30 @@ func TestAscendingOrdinal(t *testing.T) {
 	}
 }
 
-func TestOverlappingStatefulSets(t *testing.T) {
-	sets := make([]*api.StatefulSet, 10)
+func TestOverlappingPetSets(t *testing.T) {
+	sets := make([]*api.PetSet, 10)
 	perm := rand.Perm(10)
 	for i, v := range perm {
-		sets[i] = newStatefulSet(10)
+		sets[i] = newPetSet(10)
 		sets[i].CreationTimestamp = metav1.NewTime(sets[i].CreationTimestamp.Add(time.Duration(v) * time.Second))
 	}
-	sort.Sort(overlappingStatefulSets(sets))
-	if !sort.IsSorted(overlappingStatefulSets(sets)) {
+	sort.Sort(overlappingPetSets(sets))
+	if !sort.IsSorted(overlappingPetSets(sets)) {
 		t.Error("ascendingOrdinal fails to sort Pods")
 	}
 	for i, v := range perm {
-		sets[i] = newStatefulSet(10)
+		sets[i] = newPetSet(10)
 		sets[i].Name = strconv.FormatInt(int64(v), 10)
 	}
-	sort.Sort(overlappingStatefulSets(sets))
-	if !sort.IsSorted(overlappingStatefulSets(sets)) {
+	sort.Sort(overlappingPetSets(sets))
+	if !sort.IsSorted(overlappingPetSets(sets)) {
 		t.Error("ascendingOrdinal fails to sort Pods")
 	}
 }
 
 func TestNewPodControllerRef(t *testing.T) {
-	set := newStatefulSet(1)
-	pod := newStatefulSetPod(set, 0)
+	set := newPetSet(1)
+	pod := newPetSetPod(set, 0)
 	controllerRef := metav1.GetControllerOf(pod)
 	if controllerRef == nil {
 		t.Fatalf("No ControllerRef found on new pod")
@@ -643,7 +643,7 @@ func TestNewPodControllerRef(t *testing.T) {
 	if got, want := controllerRef.APIVersion, api.SchemeGroupVersion.String(); got != want {
 		t.Errorf("controllerRef.APIVersion = %q, want %q", got, want)
 	}
-	if got, want := controllerRef.Kind, "StatefulSet"; got != want {
+	if got, want := controllerRef.Kind, "PetSet"; got != want {
 		t.Errorf("controllerRef.Kind = %q, want %q", got, want)
 	}
 	if got, want := controllerRef.Name, set.Name; got != want {
@@ -658,7 +658,7 @@ func TestNewPodControllerRef(t *testing.T) {
 }
 
 func TestCreateApplyRevision(t *testing.T) {
-	set := newStatefulSet(1)
+	set := newPetSet(1)
 	set.Status.CollisionCount = new(int32)
 	revision, err := newRevision(set, 1, set.Status.CollisionCount)
 	if err != nil {
@@ -692,7 +692,7 @@ func TestCreateApplyRevision(t *testing.T) {
 }
 
 func TestRollingUpdateApplyRevision(t *testing.T) {
-	set := newStatefulSet(1)
+	set := newPetSet(1)
 	set.Status.CollisionCount = new(int32)
 	currentSet := set.DeepCopy()
 	currentRevision, err := newRevision(set, 1, set.Status.CollisionCount)
@@ -725,9 +725,9 @@ func TestRollingUpdateApplyRevision(t *testing.T) {
 }
 
 func TestGetPersistentVolumeClaims(t *testing.T) {
-	// nil inherits statefulset labels
+	// nil inherits petset labels
 	pod := newPod()
-	statefulSet := newStatefulSet(1)
+	statefulSet := newPetSet(1)
 	statefulSet.Spec.Selector.MatchLabels = nil
 	claims := getPersistentVolumeClaims(statefulSet, pod)
 	pvc := newPVC("datadir-foo-0")
@@ -737,7 +737,7 @@ func TestGetPersistentVolumeClaims(t *testing.T) {
 		t.Fatalf("Unexpected pvc:\n %+v\n, desired pvc:\n %+v", claims, resultClaims)
 	}
 
-	// nil inherits statefulset labels
+	// nil inherits petset labels
 	statefulSet.Spec.Selector.MatchLabels = map[string]string{"test": "test"}
 	claims = getPersistentVolumeClaims(statefulSet, pod)
 	pvc.SetLabels(map[string]string{"test": "test"})
@@ -746,7 +746,7 @@ func TestGetPersistentVolumeClaims(t *testing.T) {
 		t.Fatalf("Unexpected pvc:\n %+v\n, desired pvc:\n %+v", claims, resultClaims)
 	}
 
-	// non-nil with non-overlapping labels merge pvc and statefulset labels
+	// non-nil with non-overlapping labels merge pvc and petset labels
 	statefulSet.Spec.Selector.MatchLabels = map[string]string{"name": "foo"}
 	statefulSet.Spec.VolumeClaimTemplates[0].ObjectMeta.Labels = map[string]string{"test": "test"}
 	claims = getPersistentVolumeClaims(statefulSet, pod)
@@ -756,7 +756,7 @@ func TestGetPersistentVolumeClaims(t *testing.T) {
 		t.Fatalf("Unexpected pvc:\n %+v\n, desired pvc:\n %+v", claims, resultClaims)
 	}
 
-	// non-nil with overlapping labels merge pvc and statefulset labels and prefer statefulset labels
+	// non-nil with overlapping labels merge pvc and petset labels and prefer petset labels
 	statefulSet.Spec.Selector.MatchLabels = map[string]string{"test": "foo"}
 	statefulSet.Spec.VolumeClaimTemplates[0].ObjectMeta.Labels = map[string]string{"test": "test"}
 	claims = getPersistentVolumeClaims(statefulSet, pod)
@@ -800,7 +800,7 @@ func newPVC(name string) v1.PersistentVolumeClaim {
 	}
 }
 
-func newStatefulSetWithVolumes(replicas int32, name string, petMounts []v1.VolumeMount, podMounts []v1.VolumeMount) *api.StatefulSet {
+func newPetSetWithVolumes(replicas int32, name string, petMounts []v1.VolumeMount, podMounts []v1.VolumeMount) *api.PetSet {
 	mounts := append(petMounts, podMounts...)
 	claims := []v1.PersistentVolumeClaim{}
 	for _, m := range petMounts {
@@ -834,9 +834,9 @@ func newStatefulSetWithVolumes(replicas int32, name string, petMounts []v1.Volum
 
 	template.Labels = map[string]string{"foo": "bar"}
 
-	return &api.StatefulSet{
+	return &api.PetSet{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "StatefulSet",
+			Kind:       "PetSet",
 			APIVersion: "apps/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -844,7 +844,7 @@ func newStatefulSetWithVolumes(replicas int32, name string, petMounts []v1.Volum
 			Namespace: v1.NamespaceDefault,
 			UID:       types.UID("test"),
 		},
-		Spec: api.StatefulSetSpec{
+		Spec: api.PetSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"foo": "bar"},
 			},
@@ -865,17 +865,17 @@ func newStatefulSetWithVolumes(replicas int32, name string, petMounts []v1.Volum
 	}
 }
 
-func newStatefulSet(replicas int32) *api.StatefulSet {
+func newPetSet(replicas int32) *api.PetSet {
 	petMounts := []v1.VolumeMount{
 		{Name: "datadir", MountPath: "/tmp/zookeeper"},
 	}
 	podMounts := []v1.VolumeMount{
 		{Name: "home", MountPath: "/home"},
 	}
-	return newStatefulSetWithVolumes(replicas, "foo", petMounts, podMounts)
+	return newPetSetWithVolumes(replicas, "foo", petMounts, podMounts)
 }
 
-func newStatefulSetWithLabels(replicas int32, name string, uid types.UID, labels map[string]string) *api.StatefulSet {
+func newPetSetWithLabels(replicas int32, name string, uid types.UID, labels map[string]string) *api.PetSet {
 	// Converting all the map-only selectors to set-based selectors.
 	var testMatchExpressions []metav1.LabelSelectorRequirement
 	for key, value := range labels {
@@ -886,9 +886,9 @@ func newStatefulSetWithLabels(replicas int32, name string, uid types.UID, labels
 		}
 		testMatchExpressions = append(testMatchExpressions, sel)
 	}
-	return &api.StatefulSet{
+	return &api.PetSet{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "StatefulSet",
+			Kind:       "PetSet",
 			APIVersion: "apps/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -896,7 +896,7 @@ func newStatefulSetWithLabels(replicas int32, name string, uid types.UID, labels
 			Namespace: v1.NamespaceDefault,
 			UID:       uid,
 		},
-		Spec: api.StatefulSetSpec{
+		Spec: api.PetSetSpec{
 			Selector: &metav1.LabelSelector{
 				// Purposely leaving MatchLabels nil, so to ensure it will break if any link
 				// in the chain ignores the set-based MatchExpressions.
@@ -950,7 +950,7 @@ func newStatefulSetWithLabels(replicas int32, name string, uid types.UID, labels
 	}
 }
 
-func TestGetStatefulSetMaxUnavailable(t *testing.T) {
+func TestGetPetSetMaxUnavailable(t *testing.T) {
 	testCases := []struct {
 		maxUnavailable         *intstr.IntOrString
 		replicaCount           int
@@ -971,7 +971,7 @@ func TestGetStatefulSetMaxUnavailable(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
-			gotMaxUnavailable, err := getStatefulSetMaxUnavailable(tc.maxUnavailable, tc.replicaCount)
+			gotMaxUnavailable, err := getPetSetMaxUnavailable(tc.maxUnavailable, tc.replicaCount)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -19,15 +19,15 @@ limitations under the License.
 package v1
 
 import (
-	internalinterfaces "kubeops.dev/statefulset/client/informers/externalversions/internalinterfaces"
+	internalinterfaces "kubeops.dev/petset/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// PetSets returns a PetSetInformer.
+	PetSets() PetSetInformer
 	// PlacementPolicies returns a PlacementPolicyInformer.
 	PlacementPolicies() PlacementPolicyInformer
-	// StatefulSets returns a StatefulSetInformer.
-	StatefulSets() StatefulSetInformer
 }
 
 type version struct {
@@ -41,12 +41,12 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
+// PetSets returns a PetSetInformer.
+func (v *version) PetSets() PetSetInformer {
+	return &petSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
 // PlacementPolicies returns a PlacementPolicyInformer.
 func (v *version) PlacementPolicies() PlacementPolicyInformer {
 	return &placementPolicyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
-}
-
-// StatefulSets returns a StatefulSetInformer.
-func (v *version) StatefulSets() StatefulSetInformer {
-	return &statefulSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

@@ -24,9 +24,9 @@ import (
 	"k8s.io/client-go/discovery"
 	fakediscovery "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/testing"
-	clientset "kubeops.dev/statefulset/client/clientset/versioned"
-	appsv1 "kubeops.dev/statefulset/client/clientset/versioned/typed/apps/v1"
-	fakeappsv1 "kubeops.dev/statefulset/client/clientset/versioned/typed/apps/v1/fake"
+	clientset "kubeops.dev/petset/client/clientset/versioned"
+	appsv1 "kubeops.dev/petset/client/clientset/versioned/typed/apps/v1"
+	fakeappsv1 "kubeops.dev/petset/client/clientset/versioned/typed/apps/v1/fake"
 )
 
 // NewSimpleClientset returns a clientset that will respond with the provided objects.

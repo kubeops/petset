@@ -15,5 +15,7 @@ limitations under the License.
 */
 
 // +k8s:deepcopy-gen=package
+// +k8s:conversion-gen=kubeops.dev/petset/pkg/controller/petset/config
+// +k8s:conversion-gen-external-types=k8s.io/kube-controller-manager/config/v1alpha1
 
-package config // import "kubeops.dev/statefulset/pkg/controller/statefulset/config"
+package v1alpha1 // import "kubeops.dev/petset/pkg/controller/petset/config/v1alpha1"

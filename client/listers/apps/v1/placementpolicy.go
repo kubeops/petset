@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
-	v1 "kubeops.dev/statefulset/apis/apps/v1"
+	v1 "kubeops.dev/petset/apis/apps/v1"
 )
 
 // PlacementPolicyLister helps list PlacementPolicies.

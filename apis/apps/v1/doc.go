@@ -20,4 +20,4 @@ limitations under the License.
 // +k8s:deepcopy-gen=package
 // +k8s:defaulter-gen=TypeMeta
 // +groupName=apps.k8s.appscode.com
-package v1 // import "kubeops.dev/statefulset/apis/apps/v1"
+package v1 // import "kubeops.dev/petset/apis/apps/v1"

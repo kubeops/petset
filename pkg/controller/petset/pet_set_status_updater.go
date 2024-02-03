@@ -14,15 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package statefulset
+package petset
 
 import (
 	"context"
 	"fmt"
 
-	api "kubeops.dev/statefulset/apis/apps/v1"
-	"kubeops.dev/statefulset/client/clientset/versioned"
-	apilisters "kubeops.dev/statefulset/client/listers/apps/v1"
+	api "kubeops.dev/petset/apis/apps/v1"
+	"kubeops.dev/petset/client/clientset/versioned"
+	apilisters "kubeops.dev/petset/client/listers/apps/v1"
 
 	apps "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,46 +30,46 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-// StatefulSetStatusUpdaterInterface is an interface used to update the StatefulSetStatus associated with a StatefulSet.
+// StatefulSetStatusUpdaterInterface is an interface used to update the StatefulSetStatus associated with a PetSet.
 // For any use other than testing, clients should create an instance using NewRealStatefulSetStatusUpdater.
 type StatefulSetStatusUpdaterInterface interface {
 	// UpdateStatefulSetStatus sets the set's Status to status. Implementations are required to retry on conflicts,
 	// but fail on other errors. If the returned error is nil set's Status has been successfully set to status.
-	UpdateStatefulSetStatus(ctx context.Context, set *api.StatefulSet, status *apps.StatefulSetStatus) error
+	UpdateStatefulSetStatus(ctx context.Context, set *api.PetSet, status *apps.StatefulSetStatus) error
 }
 
-// NewRealStatefulSetStatusUpdater returns a StatefulSetStatusUpdaterInterface that updates the Status of a StatefulSet,
+// NewRealStatefulSetStatusUpdater returns a StatefulSetStatusUpdaterInterface that updates the Status of a PetSet,
 // using the supplied client and setLister.
 func NewRealStatefulSetStatusUpdater(
 	client versioned.Interface,
-	setLister apilisters.StatefulSetLister,
+	setLister apilisters.PetSetLister,
 ) StatefulSetStatusUpdaterInterface {
 	return &realStatefulSetStatusUpdater{client, setLister}
 }
 
 type realStatefulSetStatusUpdater struct {
 	client    versioned.Interface
-	setLister apilisters.StatefulSetLister
+	setLister apilisters.PetSetLister
 }
 
 func (ssu *realStatefulSetStatusUpdater) UpdateStatefulSetStatus(
 	ctx context.Context,
-	set *api.StatefulSet,
+	set *api.PetSet,
 	status *apps.StatefulSetStatus,
 ) error {
 	// don't wait due to limited number of clients, but backoff after the default number of steps
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		set.Status = *status
 		// TODO: This context.TODO should use a real context once we have RetryOnConflictWithContext
-		_, updateErr := ssu.client.AppsV1().StatefulSets(set.Namespace).UpdateStatus(context.TODO(), set, metav1.UpdateOptions{})
+		_, updateErr := ssu.client.AppsV1().PetSets(set.Namespace).UpdateStatus(context.TODO(), set, metav1.UpdateOptions{})
 		if updateErr == nil {
 			return nil
 		}
-		if updated, err := ssu.setLister.StatefulSets(set.Namespace).Get(set.Name); err == nil {
+		if updated, err := ssu.setLister.PetSets(set.Namespace).Get(set.Name); err == nil {
 			// make a copy so we don't mutate the shared cache
 			set = updated.DeepCopy()
 		} else {
-			utilruntime.HandleError(fmt.Errorf("error getting updated StatefulSet %s/%s from lister: %v", set.Namespace, set.Name, err))
+			utilruntime.HandleError(fmt.Errorf("error getting updated PetSet %s/%s from lister: %v", set.Namespace, set.Name, err))
 		}
 
 		return updateErr

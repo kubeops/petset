@@ -14,16 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package statefulset
+package petset
 
 import (
 	"context"
 	"errors"
 	"testing"
 
-	api "kubeops.dev/statefulset/apis/apps/v1"
-	"kubeops.dev/statefulset/client/clientset/versioned/fake"
-	appslisters "kubeops.dev/statefulset/client/listers/apps/v1"
+	api "kubeops.dev/petset/apis/apps/v1"
+	"kubeops.dev/petset/client/clientset/versioned/fake"
+	appslisters "kubeops.dev/petset/client/listers/apps/v1"
 
 	apps "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -32,12 +32,12 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-func TestStatefulSetUpdaterUpdatesSetStatus(t *testing.T) {
-	set := newStatefulSet(3)
+func TestPetSetUpdaterUpdatesSetStatus(t *testing.T) {
+	set := newPetSet(3)
 	status := apps.StatefulSetStatus{ObservedGeneration: 1, Replicas: 2}
 	fakeClient := &fake.Clientset{}
 	updater := NewRealStatefulSetStatusUpdater(fakeClient, nil)
-	fakeClient.AddReactor("update", "statefulsets", func(action core.Action) (bool, runtime.Object, error) {
+	fakeClient.AddReactor("update", "petsets", func(action core.Action) (bool, runtime.Object, error) {
 		update := action.(core.UpdateAction)
 		return true, update.GetObject(), nil
 	})
@@ -50,15 +50,15 @@ func TestStatefulSetUpdaterUpdatesSetStatus(t *testing.T) {
 }
 
 func TestStatefulSetStatusUpdaterUpdatesObservedGeneration(t *testing.T) {
-	set := newStatefulSet(3)
+	set := newPetSet(3)
 	status := apps.StatefulSetStatus{ObservedGeneration: 3, Replicas: 2}
 	fakeClient := &fake.Clientset{}
 	updater := NewRealStatefulSetStatusUpdater(fakeClient, nil)
-	fakeClient.AddReactor("update", "statefulsets", func(action core.Action) (bool, runtime.Object, error) {
+	fakeClient.AddReactor("update", "petsets", func(action core.Action) (bool, runtime.Object, error) {
 		update := action.(core.UpdateAction)
-		sts := update.GetObject().(*api.StatefulSet)
+		sts := update.GetObject().(*api.PetSet)
 		if sts.Status.ObservedGeneration != 3 {
-			t.Errorf("expected observedGeneration to be synced with generation for statefulset %q", sts.Name)
+			t.Errorf("expected observedGeneration to be synced with generation for petset %q", sts.Name)
 		}
 		return true, sts, nil
 	})
@@ -68,14 +68,14 @@ func TestStatefulSetStatusUpdaterUpdatesObservedGeneration(t *testing.T) {
 }
 
 func TestStatefulSetStatusUpdaterUpdateReplicasFailure(t *testing.T) {
-	set := newStatefulSet(3)
+	set := newPetSet(3)
 	status := apps.StatefulSetStatus{ObservedGeneration: 3, Replicas: 2}
 	fakeClient := &fake.Clientset{}
 	indexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	indexer.Add(set)
-	setLister := appslisters.NewStatefulSetLister(indexer)
+	setLister := appslisters.NewPetSetLister(indexer)
 	updater := NewRealStatefulSetStatusUpdater(fakeClient, setLister)
-	fakeClient.AddReactor("update", "statefulsets", func(action core.Action) (bool, runtime.Object, error) {
+	fakeClient.AddReactor("update", "petsets", func(action core.Action) (bool, runtime.Object, error) {
 		return true, nil, apierrors.NewInternalError(errors.New("API server down"))
 	})
 	if err := updater.UpdateStatefulSetStatus(context.TODO(), set, &status); err == nil {
@@ -84,15 +84,15 @@ func TestStatefulSetStatusUpdaterUpdateReplicasFailure(t *testing.T) {
 }
 
 func TestStatefulSetStatusUpdaterUpdateReplicasConflict(t *testing.T) {
-	set := newStatefulSet(3)
+	set := newPetSet(3)
 	status := apps.StatefulSetStatus{ObservedGeneration: 3, Replicas: 2}
 	conflict := false
 	fakeClient := &fake.Clientset{}
 	indexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	indexer.Add(set)
-	setLister := appslisters.NewStatefulSetLister(indexer)
+	setLister := appslisters.NewPetSetLister(indexer)
 	updater := NewRealStatefulSetStatusUpdater(fakeClient, setLister)
-	fakeClient.AddReactor("update", "statefulsets", func(action core.Action) (bool, runtime.Object, error) {
+	fakeClient.AddReactor("update", "petsets", func(action core.Action) (bool, runtime.Object, error) {
 		update := action.(core.UpdateAction)
 		if !conflict {
 			conflict = true
@@ -109,14 +109,14 @@ func TestStatefulSetStatusUpdaterUpdateReplicasConflict(t *testing.T) {
 }
 
 func TestStatefulSetStatusUpdaterUpdateReplicasConflictFailure(t *testing.T) {
-	set := newStatefulSet(3)
+	set := newPetSet(3)
 	status := apps.StatefulSetStatus{ObservedGeneration: 3, Replicas: 2}
 	fakeClient := &fake.Clientset{}
 	indexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	indexer.Add(set)
-	setLister := appslisters.NewStatefulSetLister(indexer)
+	setLister := appslisters.NewPetSetLister(indexer)
 	updater := NewRealStatefulSetStatusUpdater(fakeClient, setLister)
-	fakeClient.AddReactor("update", "statefulsets", func(action core.Action) (bool, runtime.Object, error) {
+	fakeClient.AddReactor("update", "petsets", func(action core.Action) (bool, runtime.Object, error) {
 		update := action.(core.UpdateAction)
 		return true, update.GetObject(), apierrors.NewConflict(action.GetResource().GroupResource(), set.Name, errors.New("object already exists"))
 	})
@@ -126,11 +126,11 @@ func TestStatefulSetStatusUpdaterUpdateReplicasConflictFailure(t *testing.T) {
 }
 
 func TestStatefulSetStatusUpdaterGetAvailableReplicas(t *testing.T) {
-	set := newStatefulSet(3)
+	set := newPetSet(3)
 	status := apps.StatefulSetStatus{ObservedGeneration: 1, Replicas: 2, AvailableReplicas: 3}
 	fakeClient := &fake.Clientset{}
 	updater := NewRealStatefulSetStatusUpdater(fakeClient, nil)
-	fakeClient.AddReactor("update", "statefulsets", func(action core.Action) (bool, runtime.Object, error) {
+	fakeClient.AddReactor("update", "petsets", func(action core.Action) (bool, runtime.Object, error) {
 		update := action.(core.UpdateAction)
 		return true, update.GetObject(), nil
 	})

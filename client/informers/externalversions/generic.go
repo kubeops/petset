@@ -23,7 +23,7 @@ import (
 
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
-	v1 "kubeops.dev/statefulset/apis/apps/v1"
+	v1 "kubeops.dev/petset/apis/apps/v1"
 )
 
 // GenericInformer is type of SharedIndexInformer which will locate and delegate to other
@@ -53,10 +53,10 @@ func (f *genericInformer) Lister() cache.GenericLister {
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
 	// Group=apps.k8s.appscode.com, Version=v1
+	case v1.SchemeGroupVersion.WithResource("petsets"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Apps().V1().PetSets().Informer()}, nil
 	case v1.SchemeGroupVersion.WithResource("placementpolicies"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Apps().V1().PlacementPolicies().Informer()}, nil
-	case v1.SchemeGroupVersion.WithResource("statefulsets"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Apps().V1().StatefulSets().Informer()}, nil
 
 	}
 

@@ -14,16 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package statefulset
+package petset
 
 import (
 	"context"
 	"sort"
 	"sync"
 
-	api "kubeops.dev/statefulset/apis/apps/v1"
-	"kubeops.dev/statefulset/pkg/controller/history"
-	"kubeops.dev/statefulset/pkg/features"
+	api "kubeops.dev/petset/apis/apps/v1"
+	"kubeops.dev/petset/pkg/controller/history"
+	"kubeops.dev/petset/pkg/features"
 
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -39,51 +39,51 @@ import (
 // Realistic value for maximum in-flight requests when processing in parallel mode.
 const MaxBatchSize = 500
 
-// StatefulSetControl implements the control logic for updating StatefulSets and their children Pods. It is implemented
+// PetSetControl implements the control logic for updating PetSets and their children Pods. It is implemented
 // as an interface to allow for extensions that provide different semantics. Currently, there is only one implementation.
-type StatefulSetControlInterface interface {
-	// UpdateStatefulSet implements the control logic for Pod creation, update, and deletion, and
+type PetSetControlInterface interface {
+	// UpdatePetSet implements the control logic for Pod creation, update, and deletion, and
 	// persistent volume creation, update, and deletion.
 	// If an implementation returns a non-nil error, the invocation will be retried using a rate-limited strategy.
 	// Implementors should sink any errors that they do not wish to trigger a retry, and they may feel free to
 	// exit exceptionally at any point provided they wish the update to be re-run at a later point in time.
-	UpdateStatefulSet(ctx context.Context, set *api.StatefulSet, pods []*v1.Pod) (*apps.StatefulSetStatus, error)
+	UpdatePetSet(ctx context.Context, set *api.PetSet, pods []*v1.Pod) (*apps.StatefulSetStatus, error)
 	// ListRevisions returns a array of the ControllerRevisions that represent the revisions of set. If the returned
 	// error is nil, the returns slice of ControllerRevisions is valid.
-	ListRevisions(set *api.StatefulSet) ([]*apps.ControllerRevision, error)
+	ListRevisions(set *api.PetSet) ([]*apps.ControllerRevision, error)
 	// AdoptOrphanRevisions adopts any orphaned ControllerRevisions that match set's Selector. If all adoptions are
 	// successful the returned error is nil.
-	AdoptOrphanRevisions(set *api.StatefulSet, revisions []*apps.ControllerRevision) error
+	AdoptOrphanRevisions(set *api.PetSet, revisions []*apps.ControllerRevision) error
 }
 
-// NewDefaultStatefulSetControl returns a new instance of the default implementation StatefulSetControlInterface that
-// implements the documented semantics for StatefulSets. podControl is the PodControlInterface used to create, update,
+// NewDefaultPetSetControl returns a new instance of the default implementation PetSetControlInterface that
+// implements the documented semantics for PetSets. podControl is the PodControlInterface used to create, update,
 // and delete Pods and to create PersistentVolumeClaims. statusUpdater is the StatefulSetStatusUpdaterInterface used
-// to update the status of StatefulSets. You should use an instance returned from NewRealStatefulPodControl() for any
+// to update the status of PetSets. You should use an instance returned from NewRealStatefulPodControl() for any
 // scenario other than testing.
-func NewDefaultStatefulSetControl(
+func NewDefaultPetSetControl(
 	podControl *StatefulPodControl,
 	statusUpdater StatefulSetStatusUpdaterInterface,
 	controllerHistory history.Interface,
 	recorder record.EventRecorder,
-) StatefulSetControlInterface {
-	return &defaultStatefulSetControl{podControl, statusUpdater, controllerHistory, recorder}
+) PetSetControlInterface {
+	return &defaultPetSetControl{podControl, statusUpdater, controllerHistory, recorder}
 }
 
-type defaultStatefulSetControl struct {
+type defaultPetSetControl struct {
 	podControl        *StatefulPodControl
 	statusUpdater     StatefulSetStatusUpdaterInterface
 	controllerHistory history.Interface
 	recorder          record.EventRecorder
 }
 
-// UpdateStatefulSet executes the core logic loop for a stateful set, applying the predictable and
+// UpdatePetSet executes the core logic loop for a stateful set, applying the predictable and
 // consistent monotonic update strategy by default - scale up proceeds in ordinal order, no new pod
 // is created while any pod is unhealthy, and pods are terminated in descending order. The burst
 // strategy allows these constraints to be relaxed - pods will be created and deleted eagerly and
 // in no particular order. Clients using the burst strategy should be careful to ensure they
 // understand the consistency implications of having unpredictable numbers of pods available.
-func (ssc *defaultStatefulSetControl) UpdateStatefulSet(ctx context.Context, set *api.StatefulSet, pods []*v1.Pod) (*apps.StatefulSetStatus, error) {
+func (ssc *defaultPetSetControl) UpdatePetSet(ctx context.Context, set *api.PetSet, pods []*v1.Pod) (*apps.StatefulSetStatus, error) {
 	set = set.DeepCopy() // set is modified when a new revision is created in performUpdate. Make a copy now to avoid mutation errors.
 
 	// list all revisions and sort them
@@ -106,19 +106,19 @@ func (ssc *defaultStatefulSetControl) UpdateStatefulSet(ctx context.Context, set
 	return status, ssc.truncateHistory(set, pods, revisions, currentRevision, updateRevision)
 }
 
-func (ssc *defaultStatefulSetControl) performUpdate(
-	ctx context.Context, set *api.StatefulSet, pods []*v1.Pod, revisions []*apps.ControllerRevision,
+func (ssc *defaultPetSetControl) performUpdate(
+	ctx context.Context, set *api.PetSet, pods []*v1.Pod, revisions []*apps.ControllerRevision,
 ) (*apps.ControllerRevision, *apps.ControllerRevision, *apps.StatefulSetStatus, error) {
 	var currentStatus *apps.StatefulSetStatus
 	logger := klog.FromContext(ctx)
 	// get the current, and update revisions
-	currentRevision, updateRevision, collisionCount, err := ssc.getStatefulSetRevisions(set, revisions)
+	currentRevision, updateRevision, collisionCount, err := ssc.getPetSetRevisions(set, revisions)
 	if err != nil {
 		return currentRevision, updateRevision, currentStatus, err
 	}
 
 	// perform the main update function and get the status
-	currentStatus, err = ssc.updateStatefulSet(ctx, set, currentRevision, updateRevision, collisionCount, pods)
+	currentStatus, err = ssc.updatePetSet(ctx, set, currentRevision, updateRevision, collisionCount, pods)
 	if err != nil && currentStatus == nil {
 		return currentRevision, updateRevision, nil, err
 	}
@@ -143,14 +143,14 @@ func (ssc *defaultStatefulSetControl) performUpdate(
 		return currentRevision, updateRevision, currentStatus, statusErr
 	}
 
-	logger.V(4).Info("StatefulSet revisions", "statefulSet", klog.KObj(set),
+	logger.V(4).Info("PetSet revisions", "statefulSet", klog.KObj(set),
 		"currentRevision", currentStatus.CurrentRevision,
 		"updateRevision", currentStatus.UpdateRevision)
 
 	return currentRevision, updateRevision, currentStatus, nil
 }
 
-func (ssc *defaultStatefulSetControl) ListRevisions(set *api.StatefulSet) ([]*apps.ControllerRevision, error) {
+func (ssc *defaultPetSetControl) ListRevisions(set *api.PetSet) ([]*apps.ControllerRevision, error) {
 	selector, err := metav1.LabelSelectorAsSelector(set.Spec.Selector)
 	if err != nil {
 		return nil, err
@@ -158,8 +158,8 @@ func (ssc *defaultStatefulSetControl) ListRevisions(set *api.StatefulSet) ([]*ap
 	return ssc.controllerHistory.ListControllerRevisions(set, selector)
 }
 
-func (ssc *defaultStatefulSetControl) AdoptOrphanRevisions(
-	set *api.StatefulSet,
+func (ssc *defaultPetSetControl) AdoptOrphanRevisions(
+	set *api.PetSet,
 	revisions []*apps.ControllerRevision,
 ) error {
 	for i := range revisions {
@@ -177,8 +177,8 @@ func (ssc *defaultStatefulSetControl) AdoptOrphanRevisions(
 // considered to be live. Non-live revisions are deleted, starting with the revision with the lowest Revision, until
 // only RevisionHistoryLimit revisions remain. If the returned error is nil the operation was successful. This method
 // expects that revisions is sorted when supplied.
-func (ssc *defaultStatefulSetControl) truncateHistory(
-	set *api.StatefulSet,
+func (ssc *defaultPetSetControl) truncateHistory(
+	set *api.PetSet,
 	pods []*v1.Pod,
 	revisions []*apps.ControllerRevision,
 	current *apps.ControllerRevision,
@@ -217,14 +217,14 @@ func (ssc *defaultStatefulSetControl) truncateHistory(
 	return nil
 }
 
-// getStatefulSetRevisions returns the current and update ControllerRevisions for set. It also
+// getPetSetRevisions returns the current and update ControllerRevisions for set. It also
 // returns a collision count that records the number of name collisions set saw when creating
 // new ControllerRevisions. This count is incremented on every name collision and is used in
 // building the ControllerRevision names for name collision avoidance. This method may create
 // a new revision, or modify the Revision of an existing revision if an update to set is detected.
 // This method expects that revisions is sorted when supplied.
-func (ssc *defaultStatefulSetControl) getStatefulSetRevisions(
-	set *api.StatefulSet,
+func (ssc *defaultPetSetControl) getPetSetRevisions(
+	set *api.PetSet,
 	revisions []*apps.ControllerRevision,
 ) (*apps.ControllerRevision, *apps.ControllerRevision, int32, error) {
 	var currentRevision, updateRevision *apps.ControllerRevision
@@ -233,7 +233,7 @@ func (ssc *defaultStatefulSetControl) getStatefulSetRevisions(
 	history.SortControllerRevisions(revisions)
 
 	// Use a local copy of set.Status.CollisionCount to avoid modifying set.Status directly.
-	// This copy is returned so the value gets carried over to set.Status in updateStatefulSet.
+	// This copy is returned so the value gets carried over to set.Status in updatePetSet.
 	var collisionCount int32
 	if set.Status.CollisionCount != nil {
 		collisionCount = *set.Status.CollisionCount
@@ -372,13 +372,13 @@ func updateStatus(status *apps.StatefulSetStatus, minReadySeconds int32, current
 	}
 }
 
-func (ssc *defaultStatefulSetControl) processReplica(
+func (ssc *defaultPetSetControl) processReplica(
 	ctx context.Context,
-	set *api.StatefulSet,
+	set *api.PetSet,
 	currentRevision *apps.ControllerRevision,
 	updateRevision *apps.ControllerRevision,
-	currentSet *api.StatefulSet,
-	updateSet *api.StatefulSet,
+	currentSet *api.PetSet,
+	updateSet *api.PetSet,
 	monotonic bool,
 	replicas []*v1.Pod,
 	i int,
@@ -394,13 +394,13 @@ func (ssc *defaultStatefulSetControl) processReplica(
 	if isFailed(replicas[i]) || isSucceeded(replicas[i]) {
 		if isFailed(replicas[i]) {
 			ssc.recorder.Eventf(set, v1.EventTypeWarning, "RecreatingFailedPod",
-				"StatefulSet %s/%s is recreating failed Pod %s",
+				"PetSet %s/%s is recreating failed Pod %s",
 				set.Namespace,
 				set.Name,
 				replicas[i].Name)
 		} else {
 			ssc.recorder.Eventf(set, v1.EventTypeNormal, "RecreatingTerminatedPod",
-				"StatefulSet %s/%s is recreating terminated Pod %s",
+				"PetSet %s/%s is recreating terminated Pod %s",
 				set.Namespace,
 				set.Name,
 				replicas[i].Name)
@@ -409,7 +409,7 @@ func (ssc *defaultStatefulSetControl) processReplica(
 			return true, err
 		}
 		replicaOrd := i + getStartOrdinal(set)
-		replicas[i] = newVersionedStatefulSetPod(
+		replicas[i] = newVersionedPetSetPod(
 			currentSet,
 			updateSet,
 			currentRevision.Name,
@@ -418,7 +418,7 @@ func (ssc *defaultStatefulSetControl) processReplica(
 	}
 	// If we find a Pod that has not been created we create the Pod
 	if !isCreated(replicas[i]) {
-		if utilfeature.DefaultFeatureGate.Enabled(features.StatefulSetAutoDeletePVC) {
+		if utilfeature.DefaultFeatureGate.Enabled(features.PetSetAutoDeletePVC) {
 			if isStale, err := ssc.podControl.PodClaimIsStale(set, replicas[i]); err != nil {
 				return true, err
 			} else if isStale {
@@ -438,7 +438,7 @@ func (ssc *defaultStatefulSetControl) processReplica(
 	// If the Pod is in pending state then trigger PVC creation to create missing PVCs
 	if isPending(replicas[i]) {
 		logger.V(4).Info(
-			"StatefulSet is triggering PVC creation for pending Pod",
+			"PetSet is triggering PVC creation for pending Pod",
 			"statefulSet", klog.KObj(set), "pod", klog.KObj(replicas[i]))
 		if err := ssc.podControl.createMissingPersistentVolumeClaims(ctx, set, replicas[i]); err != nil {
 			return true, err
@@ -448,7 +448,7 @@ func (ssc *defaultStatefulSetControl) processReplica(
 	// If we find a Pod that is currently terminating, we must wait until graceful deletion
 	// completes before we continue to make progress.
 	if isTerminating(replicas[i]) && monotonic {
-		logger.V(4).Info("StatefulSet is waiting for Pod to Terminate",
+		logger.V(4).Info("PetSet is waiting for Pod to Terminate",
 			"statefulSet", klog.KObj(set), "pod", klog.KObj(replicas[i]))
 		return true, nil
 	}
@@ -457,7 +457,7 @@ func (ssc *defaultStatefulSetControl) processReplica(
 	// We must ensure that all for each Pod, when we create it, all of its predecessors, with respect to its
 	// ordinal, are Running and Ready.
 	if !isRunningAndReady(replicas[i]) && monotonic {
-		logger.V(4).Info("StatefulSet is waiting for Pod to be Running and Ready",
+		logger.V(4).Info("PetSet is waiting for Pod to be Running and Ready",
 			"statefulSet", klog.KObj(set), "pod", klog.KObj(replicas[i]))
 		return true, nil
 	}
@@ -466,14 +466,14 @@ func (ssc *defaultStatefulSetControl) processReplica(
 	// We must ensure that all for each Pod, when we create it, all of its predecessors, with respect to its
 	// ordinal, are Available.
 	if !isRunningAndAvailable(replicas[i], set.Spec.MinReadySeconds) && monotonic {
-		logger.V(4).Info("StatefulSet is waiting for Pod to be Available",
+		logger.V(4).Info("PetSet is waiting for Pod to be Available",
 			"statefulSet", klog.KObj(set), "pod", klog.KObj(replicas[i]))
 		return true, nil
 	}
 
-	// Enforce the StatefulSet invariants
+	// Enforce the PetSet invariants
 	retentionMatch := true
-	if utilfeature.DefaultFeatureGate.Enabled(features.StatefulSetAutoDeletePVC) {
+	if utilfeature.DefaultFeatureGate.Enabled(features.PetSetAutoDeletePVC) {
 		var err error
 		retentionMatch, err = ssc.podControl.ClaimsMatchRetentionPolicy(ctx, updateSet, replicas[i])
 		// An error is expected if the pod is not yet fully updated, and so return is treated as matching.
@@ -495,12 +495,12 @@ func (ssc *defaultStatefulSetControl) processReplica(
 	return false, nil
 }
 
-func (ssc *defaultStatefulSetControl) processCondemned(ctx context.Context, set *api.StatefulSet, firstUnhealthyPod *v1.Pod, monotonic bool, condemned []*v1.Pod, i int) (bool, error) {
+func (ssc *defaultPetSetControl) processCondemned(ctx context.Context, set *api.PetSet, firstUnhealthyPod *v1.Pod, monotonic bool, condemned []*v1.Pod, i int) (bool, error) {
 	logger := klog.FromContext(ctx)
 	if isTerminating(condemned[i]) {
 		// if we are in monotonic mode, block and wait for terminating pods to expire
 		if monotonic {
-			logger.V(4).Info("StatefulSet is waiting for Pod to Terminate prior to scale down",
+			logger.V(4).Info("PetSet is waiting for Pod to Terminate prior to scale down",
 				"statefulSet", klog.KObj(set), "pod", klog.KObj(condemned[i]))
 			return true, nil
 		}
@@ -508,18 +508,18 @@ func (ssc *defaultStatefulSetControl) processCondemned(ctx context.Context, set 
 	}
 	// if we are in monotonic mode and the condemned target is not the first unhealthy Pod block
 	if !isRunningAndReady(condemned[i]) && monotonic && condemned[i] != firstUnhealthyPod {
-		logger.V(4).Info("StatefulSet is waiting for Pod to be Running and Ready prior to scale down",
+		logger.V(4).Info("PetSet is waiting for Pod to be Running and Ready prior to scale down",
 			"statefulSet", klog.KObj(set), "pod", klog.KObj(firstUnhealthyPod))
 		return true, nil
 	}
 	// if we are in monotonic mode and the condemned target is not the first unhealthy Pod, block.
 	if !isRunningAndAvailable(condemned[i], set.Spec.MinReadySeconds) && monotonic && condemned[i] != firstUnhealthyPod {
-		logger.V(4).Info("StatefulSet is waiting for Pod to be Available prior to scale down",
+		logger.V(4).Info("PetSet is waiting for Pod to be Available prior to scale down",
 			"statefulSet", klog.KObj(set), "pod", klog.KObj(firstUnhealthyPod))
 		return true, nil
 	}
 
-	logger.V(2).Info("Pod of StatefulSet is terminating for scale down",
+	logger.V(2).Info("Pod of PetSet is terminating for scale down",
 		"statefulSet", klog.KObj(set), "pod", klog.KObj(condemned[i]))
 	return true, ssc.podControl.DeleteStatefulPod(set, condemned[i])
 }
@@ -539,7 +539,7 @@ func runForAll(pods []*v1.Pod, fn func(i int) (bool, error), monotonic bool) (bo
 	return false, nil
 }
 
-// updateStatefulSet performs the update function for a StatefulSet. This method creates, updates, and deletes Pods in
+// updatePetSet performs the update function for a PetSet. This method creates, updates, and deletes Pods in
 // the set in order to conform the system to the target state for the set. The target state always contains
 // set.Spec.Replicas Pods with a Ready Condition. If the UpdateStrategy.Type for the set is
 // RollingUpdateStatefulSetStrategyType then all Pods in the set must be at set.Status.CurrentRevision.
@@ -548,9 +548,9 @@ func runForAll(pods []*v1.Pod, fn func(i int) (bool, error), monotonic bool) (bo
 // all Pods with ordinal less than UpdateStrategy.Partition.Ordinal must be at Status.CurrentRevision and all other
 // Pods must be at Status.UpdateRevision. If the returned error is nil, the returned StatefulSetStatus is valid and the
 // update must be recorded. If the error is not nil, the method should be retried until successful.
-func (ssc *defaultStatefulSetControl) updateStatefulSet(
+func (ssc *defaultPetSetControl) updatePetSet(
 	ctx context.Context,
-	set *api.StatefulSet,
+	set *api.PetSet,
 	currentRevision *apps.ControllerRevision,
 	updateRevision *apps.ControllerRevision,
 	collisionCount int32,
@@ -602,7 +602,7 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 	for ord := getStartOrdinal(set); ord <= getEndOrdinal(set); ord++ {
 		replicaIdx := ord - getStartOrdinal(set)
 		if replicas[replicaIdx] == nil {
-			replicas[replicaIdx] = newVersionedStatefulSetPod(
+			replicas[replicaIdx] = newVersionedPetSetPod(
 				currentSet,
 				updateSet,
 				currentRevision.Name,
@@ -634,10 +634,10 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 	}
 
 	if unhealthy > 0 {
-		logger.V(4).Info("StatefulSet has unhealthy Pods", "statefulSet", klog.KObj(set), "unhealthyReplicas", unhealthy, "pod", klog.KObj(firstUnhealthyPod))
+		logger.V(4).Info("PetSet has unhealthy Pods", "statefulSet", klog.KObj(set), "unhealthyReplicas", unhealthy, "pod", klog.KObj(firstUnhealthyPod))
 	}
 
-	// If the StatefulSet is being deleted, don't do anything other than updating
+	// If the PetSet is being deleted, don't do anything other than updating
 	// status.
 	if set.DeletionTimestamp != nil {
 		return &status, nil
@@ -655,7 +655,7 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 	}
 
 	// Fix pod claims for condemned pods, if necessary.
-	if utilfeature.DefaultFeatureGate.Enabled(features.StatefulSetAutoDeletePVC) {
+	if utilfeature.DefaultFeatureGate.Enabled(features.PetSetAutoDeletePVC) {
 		fixPodClaim := func(i int) (bool, error) {
 			if matchPolicy, err := ssc.podControl.ClaimsMatchRetentionPolicy(ctx, updateSet, condemned[i]); err != nil {
 				return true, err
@@ -693,8 +693,8 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 		return &status, nil
 	}
 
-	if utilfeature.DefaultFeatureGate.Enabled(features.MaxUnavailableStatefulSet) {
-		return updateStatefulSetAfterInvariantEstablished(ctx,
+	if utilfeature.DefaultFeatureGate.Enabled(features.MaxUnavailablePetSet) {
+		return updatePetSetAfterInvariantEstablished(ctx,
 			ssc,
 			set,
 			replicas,
@@ -713,7 +713,7 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 
 		// delete the Pod if it is not already terminating and does not match the update revision.
 		if getPodRevision(replicas[target]) != updateRevision.Name && !isTerminating(replicas[target]) {
-			logger.V(2).Info("Pod of StatefulSet is terminating for update",
+			logger.V(2).Info("Pod of PetSet is terminating for update",
 				"statefulSet", klog.KObj(set), "pod", klog.KObj(replicas[target]))
 			if err := ssc.podControl.DeleteStatefulPod(set, replicas[target]); err != nil {
 				if !errors.IsNotFound(err) {
@@ -726,7 +726,7 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 
 		// wait for unhealthy Pods on update
 		if !isHealthy(replicas[target]) {
-			logger.V(4).Info("StatefulSet is waiting for Pod to update",
+			logger.V(4).Info("PetSet is waiting for Pod to update",
 				"statefulSet", klog.KObj(set), "pod", klog.KObj(replicas[target]))
 			return &status, nil
 		}
@@ -735,10 +735,10 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 	return &status, nil
 }
 
-func updateStatefulSetAfterInvariantEstablished(
+func updatePetSetAfterInvariantEstablished(
 	ctx context.Context,
-	ssc *defaultStatefulSetControl,
-	set *api.StatefulSet,
+	ssc *defaultPetSetControl,
+	set *api.PetSet,
 	replicas []*v1.Pod,
 	updateRevision *apps.ControllerRevision,
 	status apps.StatefulSetStatus,
@@ -756,7 +756,7 @@ func updateStatefulSetAfterInvariantEstablished(
 		// more than 1. Ignore the passed in value and Use maxUnavailable as 1 to enforce
 		// expected behavior when feature gate is not enabled.
 		var err error
-		maxUnavailable, err = getStatefulSetMaxUnavailable(set.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable, replicaCount)
+		maxUnavailable, err = getPetSetMaxUnavailable(set.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable, replicaCount)
 		if err != nil {
 			return &status, err
 		}
@@ -774,7 +774,7 @@ func updateStatefulSetAfterInvariantEstablished(
 	}
 
 	if unavailablePods >= maxUnavailable {
-		logger.V(2).Info("StatefulSet found unavailablePods, more than or equal to allowed maxUnavailable",
+		logger.V(2).Info("PetSet found unavailablePods, more than or equal to allowed maxUnavailable",
 			"statefulSet", klog.KObj(set),
 			"unavailablePods", unavailablePods,
 			"maxUnavailable", maxUnavailable)
@@ -790,7 +790,7 @@ func updateStatefulSetAfterInvariantEstablished(
 		// delete the Pod if it is healthy and the revision doesnt match the target
 		if getPodRevision(replicas[target]) != updateRevision.Name && !isTerminating(replicas[target]) {
 			// delete the Pod if it is healthy and the revision doesnt match the target
-			logger.V(2).Info("StatefulSet terminating Pod for update",
+			logger.V(2).Info("PetSet terminating Pod for update",
 				"statefulSet", klog.KObj(set),
 				"pod", klog.KObj(replicas[target]))
 			if err := ssc.podControl.DeleteStatefulPod(set, replicas[target]); err != nil {
@@ -808,9 +808,9 @@ func updateStatefulSetAfterInvariantEstablished(
 // updateStatefulSetStatus updates set's Status to be equal to status. If status indicates a complete update, it is
 // mutated to indicate completion. If status is semantically equivalent to set's Status no update is performed. If the
 // returned error is nil, the update is successful.
-func (ssc *defaultStatefulSetControl) updateStatefulSetStatus(
+func (ssc *defaultPetSetControl) updateStatefulSetStatus(
 	ctx context.Context,
-	set *api.StatefulSet,
+	set *api.PetSet,
 	status *apps.StatefulSetStatus,
 ) error {
 	// complete any in progress rolling update if necessary
@@ -830,4 +830,4 @@ func (ssc *defaultStatefulSetControl) updateStatefulSetStatus(
 	return nil
 }
 
-var _ StatefulSetControlInterface = &defaultStatefulSetControl{}
+var _ PetSetControlInterface = &defaultPetSetControl{}
