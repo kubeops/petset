@@ -55,23 +55,31 @@ type PlacementPolicySpec struct {
 	NodeSpreadConstraint *NodeSpreadConstraint `json:"nodeSpreadConstraint,omitempty"`
 
 	// +optional
-	NodeAffinity []NodeAffinityRules `json:"nodeAffinity,omitempty"`
+	NodeAffinity []NodeAffinityRule `json:"nodeAffinity,omitempty"`
 }
 
 type ZoneSpreadConstraint struct {
-	MaxSkew           int32                            `json:"maxSkew"`
+	// +kubebuilder:default=1
+	MaxSkew int32 `json:"maxSkew"`
+	// +kubebuilder:default=DoNotSchedule
 	WhenUnsatisfiable v1.UnsatisfiableConstraintAction `json:"whenUnsatisfiable"`
 }
 
 type NodeSpreadConstraint struct {
-	MaxSkew           int32                            `json:"maxSkew"`
+	// +kubebuilder:default=1
+	MaxSkew int32 `json:"maxSkew"`
+	// +kubebuilder:default=DoNotSchedule
 	WhenUnsatisfiable v1.UnsatisfiableConstraintAction `json:"whenUnsatisfiable"`
 }
 
-type NodeAffinityRules struct {
-	TopologyKey       string                           `json:"topologyKey"`
-	Domains           []TopologyDomain                 `json:"domains"`
+type NodeAffinityRule struct {
+	TopologyKey string           `json:"topologyKey"`
+	Domains     []TopologyDomain `json:"domains"`
+	// +kubebuilder:default=DoNotSchedule
 	WhenUnsatisfiable v1.UnsatisfiableConstraintAction `json:"whenUnsatisfiable"`
+	// Weight associated with matching the corresponding nodeSelectorTerm, in the range 1-100.
+	// +kubebuilder:default=50
+	Weight int32 `json:"weight"`
 }
 
 type TopologyDomain struct {
