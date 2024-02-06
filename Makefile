@@ -424,14 +424,14 @@ endif
 install:
 	@cd ../installer; \
 	kubectl create ns $(KUBE_NAMESPACE) || true; \
-	kubectl label ns $(KUBE_NAMESPACE) pod-security.kubernetes.io/enforce=restricted; \
+#	kubectl label ns $(KUBE_NAMESPACE) pod-security.kubernetes.io/enforce=restricted; \
 	helm upgrade -i petset charts/petset --wait --debug --force \
 		--namespace=$(KUBE_NAMESPACE) --create-namespace \
 		--set registryFQDN="" \
 		--set operator.registry=$(REGISTRY) \
 		--set operator.tag=$(TAG_PROD) \
 		--set operator.securityContext.seccompProfile.type=RuntimeDefault \
-		--set rbacproxy.registry=$(REGISTRY) \
+		--set rbacproxy.registry=ghcr.io/appscode \
 		--set rbacproxy.securityContext.seccompProfile.type=RuntimeDefault \
 		--set imagePullPolicy=$(IMAGE_PULL_POLICY) \
 		$(IMAGE_PULL_SECRETS);

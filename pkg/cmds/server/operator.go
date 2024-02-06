@@ -122,6 +122,7 @@ func (s OperatorOptions) Run(ctx context.Context) error {
 		ctx,
 		cfg.KubeInformerFactory.Core().V1().Pods(),
 		cfg.InformerFactory.Apps().V1().PetSets(),
+		cfg.InformerFactory.Apps().V1().PlacementPolicies(),
 		cfg.KubeInformerFactory.Core().V1().PersistentVolumeClaims(),
 		cfg.KubeInformerFactory.Apps().V1().ControllerRevisions(),
 		cfg.KubeClient,

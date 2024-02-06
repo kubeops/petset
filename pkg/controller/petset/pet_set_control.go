@@ -409,12 +409,17 @@ func (ssc *defaultPetSetControl) processReplica(
 			return true, err
 		}
 		replicaOrd := i + getStartOrdinal(set)
-		replicas[i] = newVersionedPetSetPod(
+		vp, err := ssc.newVersionedPetSetPod(
 			currentSet,
 			updateSet,
 			currentRevision.Name,
 			updateRevision.Name,
 			replicaOrd)
+		if err != nil {
+			return true, err
+		}
+		replicas[i] = vp
+
 	}
 	// If we find a Pod that has not been created we create the Pod
 	if !isCreated(replicas[i]) {
@@ -602,11 +607,15 @@ func (ssc *defaultPetSetControl) updatePetSet(
 	for ord := getStartOrdinal(set); ord <= getEndOrdinal(set); ord++ {
 		replicaIdx := ord - getStartOrdinal(set)
 		if replicas[replicaIdx] == nil {
-			replicas[replicaIdx] = newVersionedPetSetPod(
+			vp, err := ssc.newVersionedPetSetPod(
 				currentSet,
 				updateSet,
 				currentRevision.Name,
 				updateRevision.Name, ord)
+			if err != nil {
+				return nil, err
+			}
+			replicas[replicaIdx] = vp
 		}
 	}
 
@@ -733,6 +742,33 @@ func (ssc *defaultPetSetControl) updatePetSet(
 
 	}
 	return &status, nil
+}
+
+// newVersionedStatefulSetPod creates a new Pod for a StatefulSet. currentSet is the representation of the set at the
+// current revision. updateSet is the representation of the set at the updateRevision. currentRevision is the name of
+// the current revision. updateRevision is the name of the update revision. ordinal is the ordinal of the Pod. If the
+// returned error is nil, the returned Pod is valid.
+func (ssc *defaultPetSetControl) newVersionedPetSetPod(currentSet, updateSet *api.PetSet, currentRevision, updateRevision string, ordinal int) (*v1.Pod, error) {
+	var (
+		placementPolicy *api.PlacementPolicy
+		err             error
+	)
+	if currentSet.Spec.UpdateStrategy.Type == apps.RollingUpdateStatefulSetStrategyType &&
+		(currentSet.Spec.UpdateStrategy.RollingUpdate == nil && ordinal < (getStartOrdinal(currentSet)+int(currentSet.Status.CurrentReplicas))) ||
+		(currentSet.Spec.UpdateStrategy.RollingUpdate != nil && ordinal < (getStartOrdinal(currentSet)+int(*currentSet.Spec.UpdateStrategy.RollingUpdate.Partition))) {
+		if currentSet.Spec.PodPlacementPolicy != nil {
+			placementPolicy, err = ssc.podControl.objectMgr.GetPlacementPolicy(currentSet.Spec.PodPlacementPolicy.Name)
+		}
+		pod := newPetSetPod(currentSet, placementPolicy, ordinal)
+		setPodRevision(pod, currentRevision)
+		return pod, err
+	}
+	if updateSet.Spec.PodPlacementPolicy != nil {
+		placementPolicy, err = ssc.podControl.objectMgr.GetPlacementPolicy(updateSet.Spec.PodPlacementPolicy.Name)
+	}
+	pod := newPetSetPod(updateSet, placementPolicy, ordinal)
+	setPodRevision(pod, updateRevision)
+	return pod, err
 }
 
 func updatePetSetAfterInvariantEstablished(

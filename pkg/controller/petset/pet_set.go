@@ -73,6 +73,8 @@ type PetSetController struct {
 	setListerSynced cache.InformerSynced
 	// pvcListerSynced returns true if the pvc shared informer has synced at least once
 	pvcListerSynced cache.InformerSynced
+	// placementListerSynced returns true if the placementPolicy shared informer has synced at least once
+	placementListerSynced cache.InformerSynced
 	// revListerSynced returns true if the rev shared informer has synced at least once
 	revListerSynced cache.InformerSynced
 	// PetSets that need to be synced.
@@ -86,6 +88,7 @@ func NewPetSetController(
 	ctx context.Context,
 	podInformer coreinformers.PodInformer,
 	setInformer stsinformers.PetSetInformer,
+	placementInformer stsinformers.PlacementPolicyInformer,
 	pvcInformer coreinformers.PersistentVolumeClaimInformer,
 	revInformer appsinformers.ControllerRevisionInformer,
 	kubeClient clientset.Interface,
@@ -101,16 +104,18 @@ func NewPetSetController(
 			NewStatefulPodControl(
 				kubeClient,
 				podInformer.Lister(),
+				placementInformer.Lister(),
 				pvcInformer.Lister(),
 				recorder),
 			NewRealStatefulSetStatusUpdater(apiClient, setInformer.Lister()),
 			history.NewHistory(kubeClient, revInformer.Lister()),
 			recorder,
 		),
-		pvcListerSynced: pvcInformer.Informer().HasSynced,
-		revListerSynced: revInformer.Informer().HasSynced,
-		queue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "petset"),
-		podControl:      controller.RealPodControl{KubeClient: kubeClient, Recorder: recorder},
+		pvcListerSynced:       pvcInformer.Informer().HasSynced,
+		placementListerSynced: placementInformer.Informer().HasSynced,
+		revListerSynced:       revInformer.Informer().HasSynced,
+		queue:                 workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "petset"),
+		podControl:            controller.RealPodControl{KubeClient: kubeClient, Recorder: recorder},
 
 		eventBroadcaster: eventBroadcaster,
 	}
@@ -168,7 +173,7 @@ func (ssc *PetSetController) Run(ctx context.Context, workers int) {
 	logger.Info("Starting stateful set controller")
 	defer logger.Info("Shutting down petset controller")
 
-	if !cache.WaitForNamedCacheSync("stateful set", ctx.Done(), ssc.podListerSynced, ssc.setListerSynced, ssc.pvcListerSynced, ssc.revListerSynced) {
+	if !cache.WaitForNamedCacheSync("stateful set", ctx.Done(), ssc.podListerSynced, ssc.setListerSynced, ssc.placementListerSynced, ssc.pvcListerSynced, ssc.revListerSynced) {
 		return
 	}
 

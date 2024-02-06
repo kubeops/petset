@@ -35,12 +35,13 @@ spec:
     maxSkew: 1
     whenUnsatisfiable: DoNotSchedule
   nodeAffinity:
-    - topologyKey: topology.kubernetes.io/zone
-      whenUnsatisfiable: DoNotSchedule
-      domains:
-        - values:
-            - us-east-2a
-          replicas: "" # empty means rest of the replicas
+  - topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: DoNotSchedule
+    domains:
+    - values:
+      - us-east-2a
+      replicas: "" # empty means rest of the replicas
+    weight: 40
 
 ---
 
@@ -56,21 +57,23 @@ spec:
     maxSkew: 1
     whenUnsatisfiable: DoNotSchedule
   nodeAffinity:
-    - topologyKey: topology.kubernetes.io/zone
-      whenUnsatisfiable: DoNotSchedule
-      domains:
-        - values:
-            - us-east-2a
-            - us-east-2b
-            - us-east-2c
-          replicas: "" # empty means rest of the replicas
-    - topologyKey: karpenter.sh/capacity-type
-      whenUnsatisfiable: DoNotSchedule
-      domains:
-        - values: ["on-demand"]
-          replicas: "1"
-        - values: ["spot"]
-          replicas: "" # empty means rest of the replicas
+  - topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: DoNotSchedule
+    domains:
+    - values:
+      - us-east-2a
+      - us-east-2b
+      - us-east-2c
+      replicas: "" # empty means rest of the replicas
+    weight: 40
+  - topologyKey: karpenter.sh/capacity-type
+    whenUnsatisfiable: DoNotSchedule
+    domains:
+    - values: ["on-demand"]
+      replicas: "1"
+    - values: ["spot"]
+      replicas: "" # empty means rest of the replicas
+    weight: 70
 
 ---
 
@@ -86,21 +89,23 @@ spec:
     maxSkew: 1
     whenUnsatisfiable: DoNotSchedule
   nodeAffinity:
-    - topologyKey: topology.kubernetes.io/zone
-      whenUnsatisfiable: DoNotSchedule
-      domains:
-        - values:
-            - us-east-2a
-            - us-east-2b
-            - us-east-2c
-          replicas: "" # empty means rest of the replicas
-    - topologyKey: karpenter.sh/capacity-type
-      whenUnsatisfiable: DoNotSchedule
-      domains:
-        - values: ["spot"]
-          replicas: "obj.replicas/2+1"
-        - values: ["on-demand"]
-          replicas: "" # empty means rest of the replicas
+  - topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: DoNotSchedule
+    domains:
+    - values:
+        - us-east-2a
+        - us-east-2b
+        - us-east-2c
+      replicas: "" # empty means rest of the replicas
+    weight: 40
+  - topologyKey: karpenter.sh/capacity-type
+    whenUnsatisfiable: DoNotSchedule
+    domains:
+      - values: ["spot"]
+        replicas: "obj.replicas/2+1"
+      - values: ["on-demand"]
+        replicas: "" # empty means rest of the replicas
+    weight: 70
 
 ---
 
@@ -116,16 +121,18 @@ spec:
     maxSkew: 1
     whenUnsatisfiable: DoNotSchedule
   nodeAffinity:
-    - topologyKey: topology.kubernetes.io/zone
-      whenUnsatisfiable: DoNotSchedule
-      domains:
-        - values:
-            - us-east-2a
-            - us-east-2b
-            - us-east-2c
-          replicas: "" # empty means rest of the replicas
-    - topologyKey: karpenter.sh/capacity-type
-      whenUnsatisfiable: DoNotSchedule
-      domains:
-        - values: ["spot"]
-          replicas: "" # empty means rest of the replicas
+  - topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: DoNotSchedule
+    domains:
+    - values:
+        - us-east-2a
+        - us-east-2b
+        - us-east-2c
+      replicas: "" # empty means rest of the replicas
+    weight: 40
+  - topologyKey: karpenter.sh/capacity-type
+    whenUnsatisfiable: DoNotSchedule
+    domains:
+    - values: ["spot"]
+      replicas: "" # empty means rest of the replicas
+    weight: 70

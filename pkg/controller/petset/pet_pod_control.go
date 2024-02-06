@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	api "kubeops.dev/petset/apis/apps/v1"
+	appslisters "kubeops.dev/petset/client/listers/apps/v1"
 	"kubeops.dev/petset/pkg/features"
 
 	apps "k8s.io/api/apps/v1"
@@ -48,6 +49,7 @@ type StatefulPodControlObjectManager interface {
 	CreateClaim(claim *v1.PersistentVolumeClaim) error
 	GetClaim(namespace, claimName string) (*v1.PersistentVolumeClaim, error)
 	UpdateClaim(claim *v1.PersistentVolumeClaim) error
+	GetPlacementPolicy(name string) (*api.PlacementPolicy, error)
 }
 
 // StatefulPodControl defines the interface that PetSetController uses to create, update, and delete Pods,
@@ -64,10 +66,11 @@ type StatefulPodControl struct {
 func NewStatefulPodControl(
 	client clientset.Interface,
 	podLister corelisters.PodLister,
+	placementLister appslisters.PlacementPolicyLister,
 	claimLister corelisters.PersistentVolumeClaimLister,
 	recorder record.EventRecorder,
 ) *StatefulPodControl {
-	return &StatefulPodControl{&realStatefulPodControlObjectManager{client, podLister, claimLister}, recorder}
+	return &StatefulPodControl{&realStatefulPodControlObjectManager{client, podLister, placementLister, claimLister}, recorder}
 }
 
 // NewStatefulPodControlFromManager creates a StatefulPodControl using the given StatefulPodControlObjectManager and recorder.
@@ -77,14 +80,19 @@ func NewStatefulPodControlFromManager(om StatefulPodControlObjectManager, record
 
 // realStatefulPodControlObjectManager uses a clientset.Interface and listers.
 type realStatefulPodControlObjectManager struct {
-	client      clientset.Interface
-	podLister   corelisters.PodLister
-	claimLister corelisters.PersistentVolumeClaimLister
+	client          clientset.Interface
+	podLister       corelisters.PodLister
+	placementLister appslisters.PlacementPolicyLister
+	claimLister     corelisters.PersistentVolumeClaimLister
 }
 
 func (om *realStatefulPodControlObjectManager) CreatePod(ctx context.Context, pod *v1.Pod) error {
 	_, err := om.client.CoreV1().Pods(pod.Namespace).Create(ctx, pod, metav1.CreateOptions{})
 	return err
+}
+
+func (om *realStatefulPodControlObjectManager) GetPlacementPolicy(name string) (*api.PlacementPolicy, error) {
+	return om.placementLister.Get(name)
 }
 
 func (om *realStatefulPodControlObjectManager) GetPod(namespace, podName string) (*v1.Pod, error) {
