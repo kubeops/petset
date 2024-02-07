@@ -184,7 +184,7 @@ github.com/davecgh/go-spew/spew
 # github.com/dimchansky/utfbom v1.1.1
 ## explicit
 github.com/dimchansky/utfbom
-# github.com/docker/cli v24.0.0+incompatible
+# github.com/docker/cli v24.0.7+incompatible
 ## explicit
 github.com/docker/cli/cli/config
 github.com/docker/cli/cli/config/configfile
@@ -193,7 +193,7 @@ github.com/docker/cli/cli/config/types
 # github.com/docker/distribution v2.8.2+incompatible
 ## explicit
 github.com/docker/distribution/registry/client/auth/challenge
-# github.com/docker/docker v24.0.0+incompatible
+# github.com/docker/docker v24.0.7+incompatible
 ## explicit
 github.com/docker/docker/pkg/homedir
 # github.com/docker/docker-credential-helpers v0.7.0
@@ -214,7 +214,7 @@ github.com/evanphx/json-patch/v5/internal/json
 # github.com/fatih/structs v1.1.0
 ## explicit
 github.com/fatih/structs
-# github.com/felixge/httpsnoop v1.0.3
+# github.com/felixge/httpsnoop v1.0.4
 ## explicit; go 1.13
 github.com/felixge/httpsnoop
 # github.com/fsnotify/fsnotify v1.7.0
@@ -347,7 +347,7 @@ github.com/google/gofuzz/bytesource
 # github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 ## explicit; go 1.13
 github.com/google/shlex
-# github.com/google/uuid v1.3.0
+# github.com/google/uuid v1.3.1
 ## explicit
 github.com/google/uuid
 # github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
@@ -513,15 +513,15 @@ go.etcd.io/etcd/client/v3
 go.etcd.io/etcd/client/v3/credentials
 go.etcd.io/etcd/client/v3/internal/endpoint
 go.etcd.io/etcd/client/v3/internal/resolver
-# go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.42.0
-## explicit; go 1.19
+# go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.46.0
+## explicit; go 1.20
 go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc
 go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/internal
-# go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.44.0
-## explicit; go 1.19
+# go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.46.0
+## explicit; go 1.20
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp/internal/semconvutil
-# go.opentelemetry.io/otel v1.19.0
+# go.opentelemetry.io/otel v1.20.0
 ## explicit; go 1.20
 go.opentelemetry.io/otel
 go.opentelemetry.io/otel/attribute
@@ -534,22 +534,22 @@ go.opentelemetry.io/otel/internal/global
 go.opentelemetry.io/otel/propagation
 go.opentelemetry.io/otel/semconv/v1.17.0
 go.opentelemetry.io/otel/semconv/v1.21.0
-# go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.19.0
+# go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.20.0
 ## explicit; go 1.20
 go.opentelemetry.io/otel/exporters/otlp/otlptrace
 go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal/tracetransform
-# go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.19.0
+# go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.20.0
 ## explicit; go 1.20
 go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc
 go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc/internal
 go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc/internal/envconfig
 go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc/internal/otlpconfig
 go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc/internal/retry
-# go.opentelemetry.io/otel/metric v1.19.0
+# go.opentelemetry.io/otel/metric v1.20.0
 ## explicit; go 1.20
 go.opentelemetry.io/otel/metric
 go.opentelemetry.io/otel/metric/embedded
-# go.opentelemetry.io/otel/sdk v1.19.0
+# go.opentelemetry.io/otel/sdk v1.20.0
 ## explicit; go 1.20
 go.opentelemetry.io/otel/sdk
 go.opentelemetry.io/otel/sdk/instrumentation
@@ -557,9 +557,11 @@ go.opentelemetry.io/otel/sdk/internal
 go.opentelemetry.io/otel/sdk/internal/env
 go.opentelemetry.io/otel/sdk/resource
 go.opentelemetry.io/otel/sdk/trace
-# go.opentelemetry.io/otel/trace v1.19.0
+# go.opentelemetry.io/otel/trace v1.20.0
 ## explicit; go 1.20
 go.opentelemetry.io/otel/trace
+go.opentelemetry.io/otel/trace/embedded
+go.opentelemetry.io/otel/trace/noop
 # go.opentelemetry.io/proto/otlp v1.0.0
 ## explicit; go 1.17
 go.opentelemetry.io/proto/otlp/collector/trace/v1
@@ -697,10 +699,10 @@ google.golang.org/appengine/internal/modules
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20230803162519-f966b187b2e5
+# google.golang.org/genproto v0.0.0-20230822172742-b8732ec3820d
 ## explicit; go 1.19
 google.golang.org/genproto/internal
-# google.golang.org/genproto/googleapis/api v0.0.0-20230726155614-23370e0ffb3e
+# google.golang.org/genproto/googleapis/api v0.0.0-20230822172742-b8732ec3820d
 ## explicit; go 1.19
 google.golang.org/genproto/googleapis/api
 google.golang.org/genproto/googleapis/api/annotations
@@ -710,7 +712,7 @@ google.golang.org/genproto/googleapis/api/httpbody
 ## explicit; go 1.19
 google.golang.org/genproto/googleapis/rpc/errdetails
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.58.3
+# google.golang.org/grpc v1.59.0
 ## explicit; go 1.19
 google.golang.org/grpc
 google.golang.org/grpc/attributes
