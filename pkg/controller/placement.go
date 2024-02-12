@@ -80,6 +80,11 @@ func setSpreadConstraintsFromPlacement(podSpec v1.PodSpec, pInfo PodInfo) v1.Pod
 		tsc.MaxSkew = pl.NodeSpreadConstraint.MaxSkew
 		tsc.WhenUnsatisfiable = pl.NodeSpreadConstraint.WhenUnsatisfiable
 		podSpec.TopologySpreadConstraints = UpsertTopologySpreadConstraint(podSpec.TopologySpreadConstraints, tsc)
+
+		if podSpec.Affinity == nil {
+			podSpec.Affinity = &v1.Affinity{}
+		}
+		setAntiAffinityRules(podSpec.Affinity, pl.NodeSpreadConstraint, podLabels)
 	}
 	return podSpec
 }
@@ -92,6 +97,35 @@ func UpsertTopologySpreadConstraint(lst []v1.TopologySpreadConstraint, tsc v1.To
 		}
 	}
 	return append(lst, tsc)
+}
+
+func setAntiAffinityRules(aff *v1.Affinity, nodeSpread *api.NodeSpreadConstraint, podLabels map[string]string) {
+	if aff.PodAntiAffinity == nil {
+		aff.PodAntiAffinity = &v1.PodAntiAffinity{}
+	}
+
+	if nodeSpread.WhenUnsatisfiable == v1.DoNotSchedule {
+		if aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+			aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = make([]v1.PodAffinityTerm, 0)
+		}
+		term := v1.PodAffinityTerm{
+			LabelSelector: &metav1.LabelSelector{
+				MatchLabels: podLabels,
+			},
+			TopologyKey: v1.LabelHostname,
+		}
+		aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = UpsertPodAffinityTerm(aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, term)
+	}
+}
+
+func UpsertPodAffinityTerm(lst []v1.PodAffinityTerm, term v1.PodAffinityTerm) []v1.PodAffinityTerm {
+	for i, affinityTerm := range lst {
+		if affinityTerm.TopologyKey == term.TopologyKey {
+			lst[i] = term
+			return lst
+		}
+	}
+	return append(lst, term)
 }
 
 func setNodeAffinityFromPlacement(podSpec v1.PodSpec, pInfo PodInfo) (v1.PodSpec, error) {
