@@ -29,6 +29,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/tools/record"
@@ -759,14 +760,23 @@ func (ssc *defaultPetSetControl) newVersionedPetSetPod(currentSet, updateSet *ap
 		if currentSet.Spec.PodPlacementPolicy != nil {
 			placementPolicy, err = ssc.podControl.objectMgr.GetPlacementPolicy(currentSet.Spec.PodPlacementPolicy.Name)
 		}
-		pod := newPetSetPod(currentSet, placementPolicy, ordinal)
+		podList, err := ssc.podControl.objectMgr.ListPods(currentSet.Namespace, labels.SelectorFromSet(currentSet.Spec.Template.Labels).String())
+		if err != nil {
+			return nil, err
+		}
+
+		pod := newPetSetPod(currentSet, placementPolicy, ordinal, podList)
 		setPodRevision(pod, currentRevision)
 		return pod, err
 	}
 	if updateSet.Spec.PodPlacementPolicy != nil {
 		placementPolicy, err = ssc.podControl.objectMgr.GetPlacementPolicy(updateSet.Spec.PodPlacementPolicy.Name)
 	}
-	pod := newPetSetPod(updateSet, placementPolicy, ordinal)
+	podList, err := ssc.podControl.objectMgr.ListPods(updateSet.Namespace, labels.SelectorFromSet(updateSet.Spec.Template.Labels).String())
+	if err != nil {
+		return nil, err
+	}
+	pod := newPetSetPod(updateSet, placementPolicy, ordinal, podList)
 	setPodRevision(pod, updateRevision)
 	return pod, err
 }

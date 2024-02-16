@@ -466,8 +466,8 @@ func getPodRevision(pod *v1.Pod) string {
 }
 
 // newPetSetPod returns a new Pod conforming to the set's Spec with an identity generated from ordinal.
-func newPetSetPod(set *api.PetSet, placementPolicy *api.PlacementPolicy, ordinal int) *v1.Pod {
-	pInfo := controller.NewPodInfo(set, &set.Spec.Template, placementPolicy, ordinal-getStartOrdinal(set))
+func newPetSetPod(set *api.PetSet, placementPolicy *api.PlacementPolicy, ordinal int, podList *v1.PodList) *v1.Pod {
+	pInfo := controller.NewPodInfo(set, &set.Spec.Template, placementPolicy, ordinal-getStartOrdinal(set), podList)
 	pod, _ := controller.GetPodFromTemplate(pInfo, set, metav1.NewControllerRef(set, controllerKind))
 	pod.Name = getPodName(set, ordinal)
 	initIdentity(set, pod)

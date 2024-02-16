@@ -46,6 +46,7 @@ type StatefulPodControlObjectManager interface {
 	GetPod(namespace, podName string) (*v1.Pod, error)
 	UpdatePod(pod *v1.Pod) error
 	DeletePod(pod *v1.Pod) error
+	ListPods(ns, labels string) (*v1.PodList, error)
 	CreateClaim(claim *v1.PersistentVolumeClaim) error
 	GetClaim(namespace, claimName string) (*v1.PersistentVolumeClaim, error)
 	UpdateClaim(claim *v1.PersistentVolumeClaim) error
@@ -106,6 +107,12 @@ func (om *realStatefulPodControlObjectManager) UpdatePod(pod *v1.Pod) error {
 
 func (om *realStatefulPodControlObjectManager) DeletePod(pod *v1.Pod) error {
 	return om.client.CoreV1().Pods(pod.Namespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
+}
+
+func (om *realStatefulPodControlObjectManager) ListPods(ns, labels string) (*v1.PodList, error) {
+	return om.client.CoreV1().Pods(ns).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: labels,
+	})
 }
 
 func (om *realStatefulPodControlObjectManager) CreateClaim(claim *v1.PersistentVolumeClaim) error {

@@ -18,6 +18,8 @@ package controller
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	api "kubeops.dev/petset/apis/apps/v1"
 
@@ -34,16 +36,18 @@ type PodInfo struct {
 	Template        *api.PodTemplateSpec
 	PlacementPolicy *api.PlacementPolicy
 	PodIndex        int
+	PodList         *v1.PodList
 	Obj             map[string]interface{}
 	Env             *cel.Env
 }
 
-func NewPodInfo(set *api.PetSet, template *api.PodTemplateSpec, place *api.PlacementPolicy, podIndex int) PodInfo {
+func NewPodInfo(set *api.PetSet, template *api.PodTemplateSpec, place *api.PlacementPolicy, podIndex int, podList *v1.PodList) PodInfo {
 	return PodInfo{
 		PetSet:          set,
 		Template:        template,
 		PlacementPolicy: place,
 		PodIndex:        podIndex,
+		PodList:         podList,
 	}
 }
 
@@ -80,12 +84,11 @@ func setSpreadConstraintsFromPlacement(podSpec v1.PodSpec, pInfo PodInfo) v1.Pod
 		tsc.MaxSkew = pl.NodeSpreadConstraint.MaxSkew
 		tsc.WhenUnsatisfiable = pl.NodeSpreadConstraint.WhenUnsatisfiable
 		podSpec.TopologySpreadConstraints = UpsertTopologySpreadConstraint(podSpec.TopologySpreadConstraints, tsc)
-
-		if podSpec.Affinity == nil {
-			podSpec.Affinity = &v1.Affinity{}
-		}
-		setAntiAffinityRules(podSpec.Affinity, pl.NodeSpreadConstraint, podLabels)
 	}
+	if podSpec.Affinity == nil {
+		podSpec.Affinity = &v1.Affinity{}
+	}
+	setAntiAffinityRules(podSpec.Affinity, pl, podLabels)
 	return podSpec
 }
 
@@ -99,21 +102,29 @@ func UpsertTopologySpreadConstraint(lst []v1.TopologySpreadConstraint, tsc v1.To
 	return append(lst, tsc)
 }
 
-func setAntiAffinityRules(aff *v1.Affinity, nodeSpread *api.NodeSpreadConstraint, podLabels map[string]string) {
+func setAntiAffinityRules(aff *v1.Affinity, pl api.PlacementPolicySpec, podLabels map[string]string) {
+	if pl.ZoneSpreadConstraint == nil && pl.NodeSpreadConstraint == nil {
+		return
+	}
 	if aff.PodAntiAffinity == nil {
 		aff.PodAntiAffinity = &v1.PodAntiAffinity{}
 	}
+	if aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+		aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = make([]v1.PodAffinityTerm, 0)
+	}
 
-	if nodeSpread.WhenUnsatisfiable == v1.DoNotSchedule {
-		if aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
-			aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = make([]v1.PodAffinityTerm, 0)
-		}
-		term := v1.PodAffinityTerm{
-			LabelSelector: &metav1.LabelSelector{
-				MatchLabels: podLabels,
-			},
-			TopologyKey: v1.LabelHostname,
-		}
+	term := v1.PodAffinityTerm{
+		LabelSelector: &metav1.LabelSelector{
+			MatchLabels: podLabels,
+		},
+	}
+	if pl.ZoneSpreadConstraint != nil && pl.ZoneSpreadConstraint.WhenUnsatisfiable == v1.DoNotSchedule {
+		term.TopologyKey = v1.LabelTopologyZone
+		aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = UpsertPodAffinityTerm(aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, term)
+	}
+
+	if pl.NodeSpreadConstraint != nil && pl.NodeSpreadConstraint.WhenUnsatisfiable == v1.DoNotSchedule {
+		term.TopologyKey = v1.LabelHostname
 		aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = UpsertPodAffinityTerm(aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, term)
 	}
 }
@@ -130,7 +141,7 @@ func UpsertPodAffinityTerm(lst []v1.PodAffinityTerm, term v1.PodAffinityTerm) []
 
 func setNodeAffinityFromPlacement(podSpec v1.PodSpec, pInfo PodInfo) (v1.PodSpec, error) {
 	pl := pInfo.PlacementPolicy.Spec
-	if pl.NodeAffinity == nil {
+	if pl.Affinity == nil || pl.Affinity.NodeAffinity == nil {
 		return podSpec, nil
 	}
 
@@ -159,22 +170,22 @@ func setNodeAffinityFromPlacement(podSpec v1.PodSpec, pInfo PodInfo) (v1.PodSpec
 	singleRequiredTerm := v1.NodeSelectorTerm{
 		MatchExpressions: make([]v1.NodeSelectorRequirement, 0),
 	}
-	for _, rules := range pl.NodeAffinity {
-		domainIndex, err := getAppropriateDomainIndex(rules.Domains, pInfo)
+	for _, rule := range pl.Affinity.NodeAffinity {
+		domainIndex, err := getAppropriateDomainIndex(rule, pInfo)
 		if err != nil {
 			return podSpec, err
 		}
 		req := v1.NodeSelectorRequirement{
-			Key:      rules.TopologyKey,
+			Key:      rule.TopologyKey,
 			Operator: v1.NodeSelectorOpIn,
-			Values:   rules.Domains[domainIndex].Values,
+			Values:   rule.Domains[domainIndex].Values,
 		}
-		if rules.WhenUnsatisfiable == v1.DoNotSchedule {
+		if rule.WhenUnsatisfiable == v1.DoNotSchedule {
 			singleRequiredTerm.MatchExpressions = UpsertNodeSelectorRequirements(singleRequiredTerm.MatchExpressions, req)
 		}
-		if rules.WhenUnsatisfiable == v1.ScheduleAnyway {
+		if rule.WhenUnsatisfiable == v1.ScheduleAnyway {
 			preferredAff = append(preferredAff, v1.PreferredSchedulingTerm{
-				Weight: rules.Weight,
+				Weight: rule.Weight,
 				Preference: v1.NodeSelectorTerm{
 					MatchExpressions: []v1.NodeSelectorRequirement{req},
 				},
@@ -189,22 +200,64 @@ func setNodeAffinityFromPlacement(podSpec v1.PodSpec, pInfo PodInfo) (v1.PodSpec
 	return podSpec, nil
 }
 
-func getAppropriateDomainIndex(domains []api.TopologyDomain, pInfo PodInfo) (int, error) {
-	replCounter := 0
-	for i, domain := range domains {
+type calculatedDomain struct {
+	values          string
+	replicas        int64
+	alreadyAssigned int64
+}
+
+func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, error) {
+	calculatedDomains := make([]calculatedDomain, 0)
+	for _, domain := range rule.Domains {
 		eval, err := evaluateCEL(pInfo.Obj, pInfo.Env, domain.Replicas)
 		if err != nil {
 			return 0, err
 		}
-		if eval == -1 {
+		calculatedDomains = append(calculatedDomains, calculatedDomain{
+			values:   strings.Join(domain.Values, ","),
+			replicas: eval,
+		})
+	}
+
+	updateAssignedCount := func(val string) {
+		for i := range calculatedDomains {
+			if calculatedDomains[i].values == val {
+				calculatedDomains[i].alreadyAssigned++
+				return
+			}
+		}
+	}
+	for _, pod := range pInfo.PodList.Items {
+		aff := pod.Spec.Affinity.NodeAffinity
+		if rule.WhenUnsatisfiable == v1.DoNotSchedule {
+			for _, term := range aff.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+				for _, req := range term.MatchExpressions {
+					if req.Key == rule.TopologyKey {
+						updateAssignedCount(strings.Join(req.Values, ","))
+						break
+					}
+				}
+			}
+		} else {
+			for _, term := range aff.PreferredDuringSchedulingIgnoredDuringExecution {
+				for _, req := range term.Preference.MatchExpressions {
+					if req.Key == rule.TopologyKey {
+						updateAssignedCount(strings.Join(req.Values, ","))
+						break
+					}
+				}
+			}
+		}
+	}
+	for i, domain := range calculatedDomains {
+		if domain.replicas == -1 {
 			return i, nil
 		}
-		replCounter += int(eval)
-		if pInfo.PodIndex < replCounter {
+		if domain.alreadyAssigned < domain.replicas {
 			return i, nil
 		}
 	}
-	return 0, fmt.Errorf("invalid domains %v, mismatched with podIndex %v", domains, pInfo.PodIndex)
+	return 0, fmt.Errorf("invalid domains %v, mismatched with podIndex %v", rule.Domains, pInfo.PodIndex)
 }
 
 func UpsertNodeSelectorRequirements(reqList []v1.NodeSelectorRequirement, req v1.NodeSelectorRequirement) []v1.NodeSelectorRequirement {
@@ -242,6 +295,11 @@ func preCalc(pInfo *PodInfo) error {
 func evaluateCEL(obj map[string]interface{}, env *cel.Env, rule string) (int64, error) {
 	if rule == "" {
 		return -1, nil
+	}
+
+	parseInt, err := strconv.ParseInt(rule, 10, 64)
+	if err == nil {
+		return parseInt, nil
 	}
 	ast, iss := env.Compile(rule)
 	if iss != nil && iss.Err() != nil {
