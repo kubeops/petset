@@ -326,7 +326,7 @@ var UIDSetKeyFunc = func(obj interface{}) (string, error) {
 // UIDTrackingControllerExpectations to remember which UID it has seen/still
 // waiting for.
 type UIDSet struct {
-	sets.String
+	sets.Set[string]
 	key string
 }
 
@@ -349,16 +349,16 @@ type UIDTrackingControllerExpectations struct {
 // GetUIDs is a convenience method to avoid exposing the set of expected uids.
 // The returned set is not thread safe, all modifications must be made holding
 // the uidStoreLock.
-func (u *UIDTrackingControllerExpectations) GetUIDs(controllerKey string) sets.String {
+func (u *UIDTrackingControllerExpectations) GetUIDs(controllerKey string) sets.Set[string] {
 	if uid, exists, err := u.uidStore.GetByKey(controllerKey); err == nil && exists {
-		return uid.(*UIDSet).String
+		return uid.(*UIDSet).Set
 	}
 	return nil
 }
 
 // ExpectDeletions records expectations for the given deleteKeys, against the given controller.
 func (u *UIDTrackingControllerExpectations) ExpectDeletions(logger klog.Logger, rcKey string, deletedKeys []string) error {
-	expectedUIDs := sets.NewString()
+	expectedUIDs := sets.New[string]()
 	for _, k := range deletedKeys {
 		expectedUIDs.Insert(k)
 	}

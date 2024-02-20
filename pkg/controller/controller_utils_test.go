@@ -58,7 +58,7 @@ import (
 	"k8s.io/kubernetes/pkg/controller/testutil"
 	"k8s.io/kubernetes/test/utils/ktesting"
 	testingclock "k8s.io/utils/clock/testing"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 // NewFakeControllerExpectationsLookup creates a fake store for PodExpectations.
@@ -81,7 +81,7 @@ func newReplicationController(replicas int) *v1.ReplicationController {
 			ResourceVersion: "18",
 		},
 		Spec: v1.ReplicationControllerSpec{
-			Replicas: pointer.Int32(int32(replicas)),
+			Replicas: ptr.To(int32(replicas)),
 			Selector: map[string]string{"foo": "bar"},
 			Template: &v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -143,7 +143,7 @@ func newReplicaSet(name string, replicas int, rsUuid types.UID) *apps.ReplicaSet
 			ResourceVersion: "18",
 		},
 		Spec: apps.ReplicaSetSpec{
-			Replicas: pointer.Int32(int32(replicas)),
+			Replicas: ptr.To(int32(replicas)),
 			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -474,12 +474,12 @@ func TestActivePodFiltering(t *testing.T) {
 				podPointers = append(podPointers, &podList.Items[i])
 			}
 			got := FilterActivePods(logger, podPointers)
-			gotNames := sets.NewString()
+			gotNames := sets.New[string]()
 			for _, pod := range got {
 				gotNames.Insert(pod.Name)
 			}
 
-			if diff := cmp.Diff(test.wantPodNames, gotNames.List()); diff != "" {
+			if diff := cmp.Diff(test.wantPodNames, sets.List(gotNames)); diff != "" {
 				t.Errorf("Active pod names (-want,+got):\n%s", diff)
 			}
 		})

@@ -59,7 +59,7 @@ func NewCmdWebhook(ctx context.Context) *cobra.Command {
 		Long:              "Launch webhook server",
 		DisableAutoGenTag: true,
 		Run: func(cmd *cobra.Command, args []string) {
-			ctrl.SetLogger(klogr.New())
+			ctrl.SetLogger(klogr.New()) // nolint: staticcheck
 
 			mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 				Scheme:                 clientscheme.Scheme,
@@ -102,7 +102,7 @@ func NewCmdWebhook(ctx context.Context) *cobra.Command {
 				os.Exit(1)
 			}
 
-			mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
+			if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
 				if mgr.GetCache().WaitForCacheSync(context.TODO()) {
 					if err := updateMutatingWebhookCABundle(mgr, webhookName, certDir); err != nil {
 						setupLog.Error(err, "unable to update caBundle for MutatingWebhookConfiguration")
@@ -114,7 +114,10 @@ func NewCmdWebhook(ctx context.Context) *cobra.Command {
 					}
 				}
 				return nil
-			}))
+			})); err != nil {
+				setupLog.Error(err, "unable to setup webhook configuration updater")
+				os.Exit(1)
+			}
 
 			setupLog.Info("starting manager")
 			if err := mgr.Start(ctx); err != nil {

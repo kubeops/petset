@@ -25,7 +25,6 @@ import (
 	"testing"
 	"time"
 
-	// "kubeops.dev/petset/pkg/api/legacyscheme"
 	api "kubeops.dev/petset/apis/apps/v1"
 	"kubeops.dev/petset/pkg/controller"
 
@@ -43,7 +42,7 @@ import (
 	clientscheme "k8s.io/client-go/kubernetes/scheme"
 	core "k8s.io/client-go/testing"
 	"k8s.io/kubernetes/pkg/api/legacyscheme"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 func TestRealHistory_ListControllerRevisions(t *testing.T) {
@@ -64,7 +63,10 @@ func TestRealHistory_ListControllerRevisions(t *testing.T) {
 		informer := informerFactory.Apps().V1().ControllerRevisions()
 		informerFactory.WaitForCacheSync(stop)
 		for i := range test.revisions {
-			informer.Informer().GetIndexer().Add(test.revisions[i])
+			err := informer.Informer().GetIndexer().Add(test.revisions[i])
+			if err != nil {
+				t.Errorf("%s: %s", test.name, err)
+			}
 		}
 
 		history := NewHistory(client, informer.Lister())
@@ -161,7 +163,10 @@ func TestFakeHistory_ListControllerRevisions(t *testing.T) {
 		informer := informerFactory.Apps().V1().ControllerRevisions()
 		informerFactory.WaitForCacheSync(stop)
 		for i := range test.revisions {
-			informer.Informer().GetIndexer().Add(test.revisions[i])
+			err := informer.Informer().GetIndexer().Add(test.revisions[i])
+			if err != nil {
+				t.Errorf("%s: %s", test.name, err)
+			}
 		}
 
 		history := NewFakeHistory(informer)
@@ -1652,7 +1657,7 @@ func newPetSet(replicas int, name string, uid types.UID, labels map[string]strin
 				MatchLabels:      nil,
 				MatchExpressions: testMatchExpressions,
 			},
-			Replicas: pointer.Int32(int32(replicas)),
+			Replicas: ptr.To(int32(replicas)),
 			Template: api.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: labels,

@@ -909,7 +909,7 @@ func newPetSetWithLabels(replicas int32, name string, uid types.UID, labels map[
 				WhenDeleted: apps.RetainPersistentVolumeClaimRetentionPolicyType,
 			},
 			Template: api.PodTemplateSpec{
-				ObjectMeta: api.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Labels: labels,
 				},
 				Spec: v1.PodSpec{
