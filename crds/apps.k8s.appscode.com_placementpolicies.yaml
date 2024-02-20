@@ -37,41 +37,47 @@ spec:
           spec:
             description: Spec defines the desired identities of pods in this set.
             properties:
-              nodeAffinity:
-                items:
-                  properties:
-                    domains:
-                      items:
-                        properties:
-                          replicas:
-                            type: string
-                          values:
-                            items:
-                              type: string
-                            type: array
-                        required:
-                        - replicas
-                        - values
-                        type: object
-                      type: array
-                    topologyKey:
-                      type: string
-                    weight:
-                      default: 50
-                      description: Weight associated with matching the corresponding
-                        nodeSelectorTerm, in the range 1-100.
-                      format: int32
-                      type: integer
-                    whenUnsatisfiable:
-                      default: DoNotSchedule
-                      type: string
-                  required:
-                  - domains
-                  - topologyKey
-                  - weight
-                  - whenUnsatisfiable
-                  type: object
-                type: array
+              affinity:
+                description: If specified, the pod's scheduling constraints
+                properties:
+                  nodeAffinity:
+                    description: Describes node affinity scheduling rules for the
+                      pod.
+                    items:
+                      properties:
+                        domains:
+                          items:
+                            properties:
+                              replicas:
+                                type: string
+                              values:
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                            - replicas
+                            - values
+                            type: object
+                          type: array
+                        topologyKey:
+                          type: string
+                        weight:
+                          default: 50
+                          description: Weight associated with matching the corresponding
+                            nodeSelectorTerm, in the range 1-100.
+                          format: int32
+                          type: integer
+                        whenUnsatisfiable:
+                          default: DoNotSchedule
+                          type: string
+                      required:
+                      - domains
+                      - topologyKey
+                      - weight
+                      - whenUnsatisfiable
+                      type: object
+                    type: array
+                type: object
               nodeSpreadConstraint:
                 properties:
                   maxSkew:

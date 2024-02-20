@@ -54,8 +54,9 @@ type PlacementPolicySpec struct {
 	// +optional
 	NodeSpreadConstraint *NodeSpreadConstraint `json:"nodeSpreadConstraint,omitempty"`
 
+	// If specified, the pod's scheduling constraints
 	// +optional
-	NodeAffinity []NodeAffinityRule `json:"nodeAffinity,omitempty"`
+	Affinity *Affinity `json:"affinity,omitempty"`
 }
 
 type ZoneSpreadConstraint struct {
@@ -70,6 +71,13 @@ type NodeSpreadConstraint struct {
 	MaxSkew int32 `json:"maxSkew"`
 	// +kubebuilder:default=DoNotSchedule
 	WhenUnsatisfiable v1.UnsatisfiableConstraintAction `json:"whenUnsatisfiable"`
+}
+
+// Affinity is a group of affinity scheduling rules.
+type Affinity struct {
+	// Describes node affinity scheduling rules for the pod.
+	// +optional
+	NodeAffinity []NodeAffinityRule `json:"nodeAffinity,omitempty"`
 }
 
 type NodeAffinityRule struct {

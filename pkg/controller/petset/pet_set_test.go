@@ -593,12 +593,12 @@ func TestGetPodsForPetSetAdopt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("getPodsForPetSet() error: %v", err)
 	}
-	got := sets.NewString()
+	got := sets.New[string]()
 	for _, pod := range pods {
 		got.Insert(pod.Name)
 	}
 	// pod2 should be claimed, pod3 and pod4 ignored
-	want := sets.NewString(pod1.Name, pod2.Name)
+	want := sets.New[string](pod1.Name, pod2.Name)
 	if !got.Equal(want) {
 		t.Errorf("getPodsForPetSet() = %v, want %v", got, want)
 	}
@@ -675,13 +675,13 @@ func TestGetPodsForPetSetRelease(t *testing.T) {
 	if err != nil {
 		t.Fatalf("getPodsForPetSet() error: %v", err)
 	}
-	got := sets.NewString()
+	got := sets.New[string]()
 	for _, pod := range pods {
 		got.Insert(pod.Name)
 	}
 
 	// Expect only pod1 (pod2 and pod3 should be released, pod4 ignored).
-	want := sets.NewString(pod1.Name)
+	want := sets.New[string](pod1.Name)
 	if !got.Equal(want) {
 		t.Errorf("getPodsForPetSet() = %v, want %v", got, want)
 	}

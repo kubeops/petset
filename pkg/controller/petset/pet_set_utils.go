@@ -466,28 +466,12 @@ func getPodRevision(pod *v1.Pod) string {
 }
 
 // newPetSetPod returns a new Pod conforming to the set's Spec with an identity generated from ordinal.
-func newPetSetPod(set *api.PetSet, ordinal int) *v1.Pod {
-	pod, _ := controller.GetPodFromTemplate(&set.Spec.Template, set, metav1.NewControllerRef(set, controllerKind))
+func newPetSetPod(set *api.PetSet, placementPolicy *api.PlacementPolicy, ordinal int, podList *v1.PodList) *v1.Pod {
+	pInfo := controller.NewPodInfo(set, &set.Spec.Template, placementPolicy, ordinal-getStartOrdinal(set), podList)
+	pod, _ := controller.GetPodFromTemplate(pInfo, set, metav1.NewControllerRef(set, controllerKind))
 	pod.Name = getPodName(set, ordinal)
 	initIdentity(set, pod)
 	updateStorage(set, pod)
-	return pod
-}
-
-// newVersionedPetSetPod creates a new Pod for a PetSet. currentSet is the representation of the set at the
-// current revision. updateSet is the representation of the set at the updateRevision. currentRevision is the name of
-// the current revision. updateRevision is the name of the update revision. ordinal is the ordinal of the Pod. If the
-// returned error is nil, the returned Pod is valid.
-func newVersionedPetSetPod(currentSet, updateSet *api.PetSet, currentRevision, updateRevision string, ordinal int) *v1.Pod {
-	if currentSet.Spec.UpdateStrategy.Type == apps.RollingUpdateStatefulSetStrategyType &&
-		(currentSet.Spec.UpdateStrategy.RollingUpdate == nil && ordinal < (getStartOrdinal(currentSet)+int(currentSet.Status.CurrentReplicas))) ||
-		(currentSet.Spec.UpdateStrategy.RollingUpdate != nil && ordinal < (getStartOrdinal(currentSet)+int(*currentSet.Spec.UpdateStrategy.RollingUpdate.Partition))) {
-		pod := newPetSetPod(currentSet, ordinal)
-		setPodRevision(pod, currentRevision)
-		return pod
-	}
-	pod := newPetSetPod(updateSet, ordinal)
-	setPodRevision(pod, updateRevision)
 	return pod
 }
 

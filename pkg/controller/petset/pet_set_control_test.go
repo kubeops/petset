@@ -77,7 +77,7 @@ func setupController(client clientset.Interface, apiclient versioned.Interface) 
 	// state, or to create a fake client that does not use a local cache.
 
 	// The client is passed initial sets, so we have to put them in the local setsIndexer cache.
-	if sets, err := client.AppsV1().PetSets("").List(context.TODO(), metav1.ListOptions{}); err != nil {
+	if sets, err := client.AppsV1().StatefulSets("").List(context.TODO(), metav1.ListOptions{}); err != nil {
 		panic(err)
 	} else {
 		for _, set := range sets.Items {
@@ -862,7 +862,7 @@ func TestPetSetControl_getSetRevisions(t *testing.T) {
 		informerFactory.Start(stop)
 		cache.WaitForCacheSync(
 			stop,
-			informerFactory.Apps().V1().PetSets().Informer().HasSynced,
+			informerFactory.Apps().V1().StatefulSets().Informer().HasSynced,
 			informerFactory.Core().V1().Pods().Informer().HasSynced,
 			informerFactory.Apps().V1().ControllerRevisions().Informer().HasSynced,
 		)

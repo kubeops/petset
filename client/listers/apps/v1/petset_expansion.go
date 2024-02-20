@@ -18,10 +18,12 @@ package v1
 
 import (
 	"fmt"
-	"k8s.io/api/core/v1"
+
+	api "kubeops.dev/petset/apis/apps/v1"
+
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	api "kubeops.dev/petset/apis/apps/v1"
 )
 
 // PetSetListerExpansion allows custom methods to be added to
