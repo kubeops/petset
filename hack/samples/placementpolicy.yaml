@@ -33,7 +33,7 @@ metadata:
 spec:
   nodeSpreadConstraint:
     maxSkew: 1
-    whenUnsatisfiable: ScheduleAnyway
+    whenUnsatisfiable: DoNotSchedule
   affinity:
     nodeAffinity:
       - topologyKey: topology.kubernetes.io/zone
@@ -53,7 +53,7 @@ metadata:
 spec:
   zoneSpreadConstraint:
     maxSkew: 1
-    whenUnsatisfiable: ScheduleAnyway
+    whenUnsatisfiable: DoNotSchedule
   nodeSpreadConstraint:
     maxSkew: 1
     whenUnsatisfiable: DoNotSchedule
@@ -86,7 +86,7 @@ metadata:
 spec:
   zoneSpreadConstraint:
     maxSkew: 1
-    whenUnsatisfiable: ScheduleAnyway
+    whenUnsatisfiable: DoNotSchedule
   nodeSpreadConstraint:
     maxSkew: 1
     whenUnsatisfiable: DoNotSchedule
@@ -119,7 +119,7 @@ metadata:
 spec:
   zoneSpreadConstraint:
     maxSkew: 1
-    whenUnsatisfiable: ScheduleAnyway
+    whenUnsatisfiable: DoNotSchedule
   nodeSpreadConstraint:
     maxSkew: 1
     whenUnsatisfiable: DoNotSchedule
