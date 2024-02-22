@@ -24,6 +24,7 @@ require (
 	kmodules.xyz/client-go v0.29.8
 	kmodules.xyz/go-containerregistry v0.0.12
 	sigs.k8s.io/controller-runtime v0.17.0
+	sigs.k8s.io/yaml v1.4.0
 )
 
 require (
@@ -183,7 +184,6 @@ require (
 	sigs.k8s.io/kustomize/api v0.13.5-0.20230601165947-6ce0bf390ce3 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.14.3-0.20230601165947-6ce0bf390ce3 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
-	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
 replace github.com/Masterminds/sprig/v3 => github.com/gomodules/sprig/v3 v3.2.3-0.20220405051441-0a8a99bac1b8

@@ -21,6 +21,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	ResourceKindPlacementPolicy = "PlacementPolicy"
+	ResourcePlacementPolicy     = "placementpolicy"
+	ResourcePlacementPolicies   = "placementpolicies"
+)
+
 // +genclient
 // +genclient:nonNamespaced
 // +genclient:skipVerbs=updateStatus

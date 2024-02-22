@@ -882,6 +882,13 @@ k8s.io/api/storage/v1beta1
 ## explicit; go 1.21
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1
+k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1
+k8s.io/apiextensions-apiserver/pkg/client/applyconfiguration/apiextensions/v1
+k8s.io/apiextensions-apiserver/pkg/client/applyconfiguration/apiextensions/v1beta1
+k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset
+k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme
+k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1
+k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1
 k8s.io/apiextensions-apiserver/pkg/features
 # k8s.io/apimachinery v0.29.0
 ## explicit; go 1.21
@@ -1491,6 +1498,8 @@ k8s.io/utils/trace
 # kmodules.xyz/client-go v0.29.8
 ## explicit; go 1.21.5
 kmodules.xyz/client-go
+kmodules.xyz/client-go/apiextensions
+kmodules.xyz/client-go/apiextensions/v1
 kmodules.xyz/client-go/meta
 kmodules.xyz/client-go/tools/clientcmd
 # kmodules.xyz/go-containerregistry v0.0.12
