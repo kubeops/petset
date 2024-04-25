@@ -687,6 +687,12 @@ gomodules.xyz/jsonpatch/v2
 # gomodules.xyz/logs v0.0.7
 ## explicit; go 1.16
 gomodules.xyz/logs
+# gomodules.xyz/mergo v0.3.13
+## explicit; go 1.13
+gomodules.xyz/mergo
+# gomodules.xyz/pointer v0.1.0
+## explicit; go 1.15
+gomodules.xyz/pointer
 # gomodules.xyz/sets v0.2.1
 ## explicit; go 1.14
 gomodules.xyz/sets
@@ -1505,6 +1511,7 @@ k8s.io/utils/trace
 kmodules.xyz/client-go
 kmodules.xyz/client-go/apiextensions
 kmodules.xyz/client-go/apiextensions/v1
+kmodules.xyz/client-go/core/v1
 kmodules.xyz/client-go/meta
 kmodules.xyz/client-go/tools/clientcmd
 # kmodules.xyz/go-containerregistry v0.0.12
