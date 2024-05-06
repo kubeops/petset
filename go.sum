@@ -328,8 +328,8 @@ github.com/klauspost/cpuid/v2 v2.0.9 h1:lgaqFMSdTdQYdZ04uHyN2d/eKdOMyi2YLSvlQIBF
 github.com/klauspost/cpuid/v2 v2.0.9/go.mod h1:FInQzS24/EEf25PyTYn52gqo7WaD8xa0213Md/qVLRg=
 github.com/kmodules/apiserver v0.29.1-0.20240104121741-1fb217d4a573 h1:6v7bTFGH/Ha1idq1sLX9px2KJhcx6cpuMowuYRyCht4=
 github.com/kmodules/apiserver v0.29.1-0.20240104121741-1fb217d4a573/go.mod h1:31n78PsRKPmfpee7/l9NYEv67u6hOL6AfcE761HapDM=
-github.com/kmodules/controller-runtime v0.17.2-0.20240213085617-b6aac9684c00 h1:+2add9izgyGZb+ZOkMwPH/fswvgfIxWilUatbp2nPo8=
-github.com/kmodules/controller-runtime v0.17.2-0.20240213085617-b6aac9684c00/go.mod h1:+MngTvIQQQhfXtwfdGw/UOQ/aIaqsYywfCINOtwMO/s=
+github.com/kmodules/controller-runtime v0.17.5-0.20240506165850-9bc6cbeccc8a h1:u8HKIdgkhL3sN8Xie0+/JyoLbPCLkG8SHxtEpU1Meo0=
+github.com/kmodules/controller-runtime v0.17.5-0.20240506165850-9bc6cbeccc8a/go.mod h1:N0jpP5Lo7lMTF9aL56Z/B2oWBJjey6StQM0jRbKQXtY=
 github.com/kmodules/kubernetes v1.30.0-alpha.0.0.20231224075822-3bd9a13c86db h1:mxGSSonND38OzJ8W6zfKEUY5JMe04OcgjRLEgCXbjLM=
 github.com/kmodules/kubernetes v1.30.0-alpha.0.0.20231224075822-3bd9a13c86db/go.mod h1:V78f/rAOcRUt4c3Dd4NbjY7u4VG9ApaovqIgNacJqBc=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
@@ -703,8 +703,6 @@ gomodules.xyz/jsonpatch/v2 v2.4.0 h1:Ci3iUJyx9UeRx7CeFN8ARgGbkESwJK+KB9lLcWxY/Zw
 gomodules.xyz/jsonpatch/v2 v2.4.0/go.mod h1:AH3dM2RI6uoBZxn3LVrfvJ3E0/9dG4cSrbuBJT4moAY=
 gomodules.xyz/logs v0.0.7 h1:dkhpdQuzj+pOS3S7VaOq+JV7BVU7f68/k3uDYufhPow=
 gomodules.xyz/logs v0.0.7/go.mod h1:IEIZbRl9zua2jb35NU4KoqxUEDPmKvem3PhfRHqQI54=
-gomodules.xyz/mergo v0.3.13 h1:q6cL/MMXZH/MrR2+yjSihFFq6UifXqjwaqI48B6cMEM=
-gomodules.xyz/mergo v0.3.13/go.mod h1:F/2rKC7j0URTnHUKDiTiLcGdLMhdv8jK2Za3cRTUVmc=
 gomodules.xyz/pointer v0.1.0 h1:sG2UKrYVSo6E3r4itAjXfPfe4fuXMi0KdyTHpR3vGCg=
 gomodules.xyz/pointer v0.1.0/go.mod h1:sPLsC0+yLTRecUiC5yVlyvXhZ6LAGojNCRWNNqoplvo=
 gomodules.xyz/sets v0.2.0/go.mod h1:jKgNp01/iDs+svOWXaPk5cKP3VXy0mWUoTF/ore+aMc=
@@ -783,7 +781,6 @@ gopkg.in/yaml.v2 v2.2.8/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
 gopkg.in/yaml.v2 v2.4.0 h1:D8xgwECY7CYvx+Y2n4sBz93Jn9JRvxdiyyo8CTfuKaY=
 gopkg.in/yaml.v2 v2.4.0/go.mod h1:RDklbk79AGWmwhnvt/jBztapEOGDOx6ZbXqjP6csGnQ=
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
-gopkg.in/yaml.v3 v3.0.0/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gotest.tools/v3 v3.1.0 h1:rVV8Tcg/8jHUkPUorwjaMTtemIMVXfIPKiOqnhEhakk=
