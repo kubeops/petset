@@ -197,8 +197,14 @@ gen-crds:
 			paths="./apis/..."              \
 			output:crd:artifacts:config=crds
 
+.PHONY: patch-crds
+patch-crds: $(BUILD_DIRS)
+	@echo "patching apps.k8s.appscode.com_petsets.yaml"
+	@kubectl patch -f crds/apps.k8s.appscode.com_petsets.yaml -p "$$(cat hack/petset-crd-patch.json)" --type=json --local=true -o yaml > bin/apps.k8s.appscode.com_petsets.yaml
+	@mv bin/apps.k8s.appscode.com_petsets.yaml crds/apps.k8s.appscode.com_petsets.yaml
+
 .PHONY: manifests
-manifests: gen-crds
+manifests: gen-crds patch-crds
 
 .PHONY: gen
 gen: clientset manifests # openapi
