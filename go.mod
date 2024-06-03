@@ -190,7 +190,7 @@ require (
 
 replace github.com/Masterminds/sprig/v3 => github.com/gomodules/sprig/v3 v3.2.3-0.20220405051441-0a8a99bac1b8
 
-replace sigs.k8s.io/controller-runtime => github.com/kmodules/controller-runtime v0.18.3-0.20240518022955-f5b0bfc2bdf1
+replace sigs.k8s.io/controller-runtime => github.com/kmodules/controller-runtime v0.18.4-0.20240603164526-fa88ec2314fe
 
 replace github.com/imdario/mergo => github.com/imdario/mergo v0.3.6
 

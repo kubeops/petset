@@ -323,8 +323,8 @@ github.com/klauspost/cpuid/v2 v2.0.9 h1:lgaqFMSdTdQYdZ04uHyN2d/eKdOMyi2YLSvlQIBF
 github.com/klauspost/cpuid/v2 v2.0.9/go.mod h1:FInQzS24/EEf25PyTYn52gqo7WaD8xa0213Md/qVLRg=
 github.com/kmodules/apiserver v0.30.2-0.20240519082755-d7b8c2d9e699 h1:BDVkSP6mWfeHbzmy6c9FPzU1ymIyizPy5m9sXYw/fFo=
 github.com/kmodules/apiserver v0.30.2-0.20240519082755-d7b8c2d9e699/go.mod h1:i87ZnQ+/PGAmSbD/iEKM68bm1D5reX8fO4Ito4B01mo=
-github.com/kmodules/controller-runtime v0.18.3-0.20240518022955-f5b0bfc2bdf1 h1:0GHLzMSKYWpUSTzqlmRcVi3mo+o4YRpevlorGMk5uqk=
-github.com/kmodules/controller-runtime v0.18.3-0.20240518022955-f5b0bfc2bdf1/go.mod h1:tuAt1+wbVsXIT8lPtk5RURxqAnq7xkpv2Mhttslg7Hw=
+github.com/kmodules/controller-runtime v0.18.4-0.20240603164526-fa88ec2314fe h1:6nl5dIci8FTzM2hxZ89ufxTXUYqLr9kSGEPPwX87ryk=
+github.com/kmodules/controller-runtime v0.18.4-0.20240603164526-fa88ec2314fe/go.mod h1:TVoGrfdpbA9VRFaRnKgk9P5/atA0pMwq+f+msb9M8Sg=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
 github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515/go.mod h1:+0opPa2QZZtGFBFZlji/RkVcI2GknAs/DXo4wKdlNEc=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
