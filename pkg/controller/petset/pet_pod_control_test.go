@@ -567,7 +567,7 @@ func TestStatefulPodControlUpdatePodClaimForRetentionPolicy(t *testing.T) {
 		if err := control.UpdatePodClaimForRetentionPolicy(ctx, set, pod); err != nil {
 			t.Errorf("Unexpected error for UpdatePodClaimForRetentionPolicy (retain): %v", err)
 		}
-		expectRef := utilfeature.DefaultFeatureGate.Enabled(features.PetSetAutoDeletePVC)
+		expectRef := features.DefaultFeatureGate.Enabled(features.PetSetAutoDeletePVC)
 		for k := range claims {
 			claim, err := claimLister.PersistentVolumeClaims(claims[k].Namespace).Get(claims[k].Name)
 			if err != nil {
@@ -725,7 +725,7 @@ func TestStatefulPodControlRetainDeletionPolicyUpdate(t *testing.T) {
 			}
 		}
 		events := collectEvents(recorder.Events)
-		if utilfeature.DefaultFeatureGate.Enabled(features.PetSetAutoDeletePVC) {
+		if features.DefaultFeatureGate.Enabled(features.PetSetAutoDeletePVC) {
 			if eventCount := len(events); eventCount != 1 {
 				t.Errorf("delete failed: got %d events, but want 1", eventCount)
 			}

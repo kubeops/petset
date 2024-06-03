@@ -15,7 +15,6 @@ require (
 	gomodules.xyz/pointer v0.1.0
 	gomodules.xyz/x v0.0.17
 	k8s.io/api v0.30.1
-	k8s.io/apiextensions-apiserver v0.30.1
 	k8s.io/apimachinery v0.30.1
 	k8s.io/apiserver v0.30.1
 	k8s.io/client-go v0.30.1
@@ -176,6 +175,7 @@ require (
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	k8s.io/apiextensions-apiserver v0.30.1 // indirect
 	k8s.io/cli-runtime v0.30.1 // indirect
 	k8s.io/cloud-provider v0.30.1 // indirect
 	k8s.io/component-helpers v0.30.1 // indirect
