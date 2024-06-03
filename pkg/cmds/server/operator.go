@@ -25,6 +25,7 @@ import (
 	apiinformers "kubeops.dev/petset/client/informers/externalversions"
 	"kubeops.dev/petset/pkg/controller"
 	"kubeops.dev/petset/pkg/controller/petset"
+	"kubeops.dev/petset/pkg/features"
 
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/informers"
@@ -64,6 +65,7 @@ func (s *OperatorOptions) AddFlags(fs *pflag.FlagSet) {
 	pfs := flag.NewFlagSet("extra-flags", flag.ExitOnError)
 	s.AddGoFlags(pfs)
 	fs.AddGoFlagSet(pfs)
+	features.DefaultMutableFeatureGate.AddFlag(fs)
 }
 
 func (s *OperatorOptions) ApplyTo(cfg *controller.OperatorConfig) error {

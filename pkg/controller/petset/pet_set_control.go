@@ -31,7 +31,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/integer"
@@ -424,7 +423,7 @@ func (ssc *defaultPetSetControl) processReplica(
 	}
 	// If we find a Pod that has not been created we create the Pod
 	if !isCreated(replicas[i]) {
-		if utilfeature.DefaultFeatureGate.Enabled(features.PetSetAutoDeletePVC) {
+		if features.DefaultFeatureGate.Enabled(features.PetSetAutoDeletePVC) {
 			if isStale, err := ssc.podControl.PodClaimIsStale(set, replicas[i]); err != nil {
 				return true, err
 			} else if isStale {
@@ -479,7 +478,7 @@ func (ssc *defaultPetSetControl) processReplica(
 
 	// Enforce the PetSet invariants
 	retentionMatch := true
-	if utilfeature.DefaultFeatureGate.Enabled(features.PetSetAutoDeletePVC) {
+	if features.DefaultFeatureGate.Enabled(features.PetSetAutoDeletePVC) {
 		var err error
 		retentionMatch, err = ssc.podControl.ClaimsMatchRetentionPolicy(ctx, updateSet, replicas[i])
 		// An error is expected if the pod is not yet fully updated, and so return is treated as matching.
@@ -665,7 +664,7 @@ func (ssc *defaultPetSetControl) updatePetSet(
 	}
 
 	// Fix pod claims for condemned pods, if necessary.
-	if utilfeature.DefaultFeatureGate.Enabled(features.PetSetAutoDeletePVC) {
+	if features.DefaultFeatureGate.Enabled(features.PetSetAutoDeletePVC) {
 		fixPodClaim := func(i int) (bool, error) {
 			if matchPolicy, err := ssc.podControl.ClaimsMatchRetentionPolicy(ctx, updateSet, condemned[i]); err != nil {
 				return true, err
@@ -703,7 +702,7 @@ func (ssc *defaultPetSetControl) updatePetSet(
 		return &status, nil
 	}
 
-	if utilfeature.DefaultFeatureGate.Enabled(features.MaxUnavailablePetSet) {
+	if features.DefaultFeatureGate.Enabled(features.MaxUnavailablePetSet) {
 		return updatePetSetAfterInvariantEstablished(ctx,
 			ssc,
 			set,
