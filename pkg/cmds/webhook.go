@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	clientscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/klogr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -102,8 +103,11 @@ func NewCmdWebhook(ctx context.Context) *cobra.Command {
 				os.Exit(1)
 			}
 
+			klog.Info("mgr.Add()")
 			if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
+				klog.Info("Inside mgr.Add()")
 				if mgr.GetCache().WaitForCacheSync(context.TODO()) {
+					klog.Info("cache is synced")
 					if err := updateMutatingWebhookCABundle(mgr, webhookName, certDir); err != nil {
 						setupLog.Error(err, "unable to update caBundle for MutatingWebhookConfiguration")
 						os.Exit(1)
@@ -118,6 +122,7 @@ func NewCmdWebhook(ctx context.Context) *cobra.Command {
 				setupLog.Error(err, "unable to setup webhook configuration updater")
 				os.Exit(1)
 			}
+			// mgr.GetCache().WaitForCacheSync(context.TODO())
 
 			setupLog.Info("starting manager")
 			if err := mgr.Start(ctx); err != nil {
@@ -165,5 +170,7 @@ func updateValidatingWebhookCABundle(mgr ctrl.Manager, name, certDir string) err
 	for i := range webhook.Webhooks {
 		webhook.Webhooks[i].ClientConfig.CABundle = caBundle
 	}
-	return mgr.GetClient().Update(context.TODO(), webhook, &client.UpdateOptions{})
+	err = mgr.GetClient().Update(context.TODO(), webhook, &client.UpdateOptions{})
+	klog.Infof("Updating validating webhook caBundle to %s", caBundle)
+	return err
 }
