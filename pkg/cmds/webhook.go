@@ -25,11 +25,15 @@ import (
 
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
+	reg "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	clientscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/klogr"
+	kutil "kmodules.xyz/client-go"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -39,6 +43,10 @@ import (
 )
 
 var setupLog = ctrl.Log.WithName("setup")
+
+const (
+	installerApplyLabelKey = "updated-for"
+)
 
 func NewCmdWebhook(ctx context.Context) *cobra.Command {
 	certDir := "/var/serving-cert"
@@ -104,6 +112,12 @@ func NewCmdWebhook(ctx context.Context) *cobra.Command {
 
 			if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
 				if mgr.GetCache().WaitForCacheSync(context.TODO()) {
+					kbclient := mgr.GetClient()
+					klog.Infoln("waiting for webhook configuration to be ready")
+					err := WaitUntilWebhookConfigurationApplied(ctx, webhookName, kbclient)
+					if err != nil {
+						setupLog.Error(err, "unable to wait until webhook configuration is applied")
+					}
 					if err := updateMutatingWebhookCABundle(mgr, webhookName, certDir); err != nil {
 						setupLog.Error(err, "unable to update caBundle for MutatingWebhookConfiguration")
 						os.Exit(1)
@@ -138,7 +152,7 @@ func updateMutatingWebhookCABundle(mgr ctrl.Manager, name, certDir string) error
 	if err != nil {
 		return err
 	}
-
+	delete(webhook.ObjectMeta.Labels, installerApplyLabelKey)
 	caBundle, err := os.ReadFile(filepath.Join(certDir, "ca.crt"))
 	if err != nil {
 		return err
@@ -157,6 +171,7 @@ func updateValidatingWebhookCABundle(mgr ctrl.Manager, name, certDir string) err
 	if err != nil {
 		return err
 	}
+	delete(webhook.ObjectMeta.Labels, installerApplyLabelKey)
 
 	caBundle, err := os.ReadFile(filepath.Join(certDir, "ca.crt"))
 	if err != nil {
@@ -166,4 +181,33 @@ func updateValidatingWebhookCABundle(mgr ctrl.Manager, name, certDir string) err
 		webhook.Webhooks[i].ClientConfig.CABundle = caBundle
 	}
 	return mgr.GetClient().Update(context.TODO(), webhook, &client.UpdateOptions{})
+}
+
+func WaitUntilWebhookConfigurationApplied(ctx context.Context, webhookName string, c client.Client) error {
+	return wait.PollUntilContextTimeout(ctx, kutil.RetryInterval, kutil.ReadinessTimeout, true, func(ctx context.Context) (bool, error) {
+		var mwc reg.MutatingWebhookConfiguration
+		err := c.Get(ctx, types.NamespacedName{
+			Name: webhookName,
+		}, &mwc)
+		if err != nil {
+			return false, nil
+		}
+		var vwc reg.ValidatingWebhookConfiguration
+		err = c.Get(ctx, types.NamespacedName{
+			Name: webhookName,
+		}, &vwc)
+		if err != nil {
+			return false, nil
+		}
+		_, mwcExists := mwc.ObjectMeta.Labels[installerApplyLabelKey]
+		_, vwcExists := vwc.ObjectMeta.Labels[installerApplyLabelKey]
+
+		klog.Infoln("mwc exisrtssssssssssssssssssssss", mwcExists, vwcExists)
+
+		if !mwcExists || !vwcExists {
+			return false, nil
+		}
+
+		return true, nil
+	})
 }
