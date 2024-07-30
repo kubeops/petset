@@ -18,10 +18,11 @@ package cmds
 
 import (
 	"context"
+	"fmt"
+	corev1 "k8s.io/api/core/v1"
+	appsv1 "kubeops.dev/petset/apis/apps/v1"
 	"os"
 	"path/filepath"
-
-	appsv1 "kubeops.dev/petset/apis/apps/v1"
 
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
@@ -152,7 +153,6 @@ func updateMutatingWebhookCABundle(mgr ctrl.Manager, name, certDir string) error
 	if err != nil {
 		return err
 	}
-	delete(webhook.ObjectMeta.Labels, installerApplyLabelKey)
 	caBundle, err := os.ReadFile(filepath.Join(certDir, "ca.crt"))
 	if err != nil {
 		return err
@@ -171,7 +171,6 @@ func updateValidatingWebhookCABundle(mgr ctrl.Manager, name, certDir string) err
 	if err != nil {
 		return err
 	}
-	delete(webhook.ObjectMeta.Labels, installerApplyLabelKey)
 
 	caBundle, err := os.ReadFile(filepath.Join(certDir, "ca.crt"))
 	if err != nil {
@@ -184,6 +183,23 @@ func updateValidatingWebhookCABundle(mgr ctrl.Manager, name, certDir string) err
 }
 
 func WaitUntilWebhookConfigurationApplied(ctx context.Context, webhookName string, c client.Client) error {
+	var pod corev1.Pod
+	// k8s. io/ api/ core/ v1
+	podName := os.Getenv("POD_NAME")
+	podNamespace := os.Getenv("POD_NAMESPACE")
+	err := c.Get(ctx, types.NamespacedName{
+		Name:      podName,
+		Namespace: podNamespace,
+	}, &pod)
+	klog.Infoln("errrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr, ", err)
+	if err != nil {
+		return err
+	}
+	val, exists := pod.Labels[installerApplyLabelKey]
+	if !exists {
+		return fmt.Errorf("missing %s label", installerApplyLabelKey)
+	}
+
 	return wait.PollUntilContextTimeout(ctx, kutil.RetryInterval, kutil.ReadinessTimeout, true, func(ctx context.Context) (bool, error) {
 		var mwc reg.MutatingWebhookConfiguration
 		err := c.Get(ctx, types.NamespacedName{
@@ -199,12 +215,16 @@ func WaitUntilWebhookConfigurationApplied(ctx context.Context, webhookName strin
 		if err != nil {
 			return false, nil
 		}
-		_, mwcExists := mwc.ObjectMeta.Labels[installerApplyLabelKey]
-		_, vwcExists := vwc.ObjectMeta.Labels[installerApplyLabelKey]
+		mwcVal, mwcExists := mwc.ObjectMeta.Labels[installerApplyLabelKey]
+		vwcVal, vwcExists := vwc.ObjectMeta.Labels[installerApplyLabelKey]
 
 		klog.Infoln("mwc exisrtssssssssssssssssssssss", mwcExists, vwcExists)
 
 		if !mwcExists || !vwcExists {
+			return false, nil
+		}
+
+		if mwcVal != val || vwcVal != val {
 			return false, nil
 		}
 
