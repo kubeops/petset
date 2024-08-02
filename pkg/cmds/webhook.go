@@ -18,11 +18,10 @@ package cmds
 
 import (
 	"context"
-	"fmt"
-	corev1 "k8s.io/api/core/v1"
-	appsv1 "kubeops.dev/petset/apis/apps/v1"
 	"os"
 	"path/filepath"
+
+	appsv1 "kubeops.dev/petset/apis/apps/v1"
 
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
@@ -46,7 +45,8 @@ import (
 var setupLog = ctrl.Log.WithName("setup")
 
 const (
-	installerApplyLabelKey = "updated-for"
+	releaseRevisionLabelKey = "release-revision"
+	releaseRevisionEnvKey   = "RELEASE_REVISION"
 )
 
 func NewCmdWebhook(ctx context.Context) *cobra.Command {
@@ -183,22 +183,7 @@ func updateValidatingWebhookCABundle(mgr ctrl.Manager, name, certDir string) err
 }
 
 func WaitUntilWebhookConfigurationApplied(ctx context.Context, webhookName string, c client.Client) error {
-	var pod corev1.Pod
-	// k8s. io/ api/ core/ v1
-	podName := os.Getenv("POD_NAME")
-	podNamespace := os.Getenv("POD_NAMESPACE")
-	err := c.Get(ctx, types.NamespacedName{
-		Name:      podName,
-		Namespace: podNamespace,
-	}, &pod)
-	klog.Infoln("errrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr, ", err)
-	if err != nil {
-		return err
-	}
-	val, exists := pod.Labels[installerApplyLabelKey]
-	if !exists {
-		return fmt.Errorf("missing %s label", installerApplyLabelKey)
-	}
+	releaseRevision := os.Getenv(releaseRevisionEnvKey)
 
 	return wait.PollUntilContextTimeout(ctx, kutil.RetryInterval, kutil.ReadinessTimeout, true, func(ctx context.Context) (bool, error) {
 		var mwc reg.MutatingWebhookConfiguration
@@ -215,16 +200,14 @@ func WaitUntilWebhookConfigurationApplied(ctx context.Context, webhookName strin
 		if err != nil {
 			return false, nil
 		}
-		mwcVal, mwcExists := mwc.ObjectMeta.Labels[installerApplyLabelKey]
-		vwcVal, vwcExists := vwc.ObjectMeta.Labels[installerApplyLabelKey]
-
-		klog.Infoln("mwc exisrtssssssssssssssssssssss", mwcExists, vwcExists)
+		mwcReleaseRevision, mwcExists := mwc.ObjectMeta.Labels[releaseRevisionLabelKey]
+		vwcReleaseRevision, vwcExists := vwc.ObjectMeta.Labels[releaseRevisionLabelKey]
 
 		if !mwcExists || !vwcExists {
 			return false, nil
 		}
 
-		if mwcVal != val || vwcVal != val {
+		if mwcReleaseRevision != releaseRevision || vwcReleaseRevision != releaseRevision {
 			return false, nil
 		}
 
