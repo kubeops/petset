@@ -424,7 +424,7 @@ endif
 install:
 	@cd ../installer; \
 	kubectl create ns $(KUBE_NAMESPACE) || true; \
-#	kubectl label ns $(KUBE_NAMESPACE) pod-security.kubernetes.io/enforce=restricted; \
+	kubectl label ns $(KUBE_NAMESPACE) pod-security.kubernetes.io/enforce=restricted; \
 	helm upgrade -i petset charts/petset --wait --debug --force \
 		--namespace=$(KUBE_NAMESPACE) --create-namespace \
 		--set registryFQDN="" \
