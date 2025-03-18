@@ -19,6 +19,9 @@ package authn
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -38,12 +41,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog/v2"
 )
 
 var (
 	insecureRegistries  []string
 	once                sync.Once
-	insecureRegistrySet sets.String
+	insecureRegistrySet sets.Set[string]
 
 	SkipImageDigest string
 	amazonKeychain  = authn.NewKeychainFromHelper(ecr.NewECRHelper(ecr.WithLogger(io.Discard)))
@@ -55,7 +59,7 @@ func AddInsecureRegistriesFlag(fs *pflag.FlagSet) {
 	if fs == nil {
 		fs = pflag.CommandLine
 	}
-	fs.StringSliceVar(&insecureRegistries, "insecure-registries", insecureRegistries, "List of registries to be used without TLS")
+	fs.StringSliceVar(&insecureRegistries, "insecure-registries", insecureRegistries, "List of registries to be used without TLS verification")
 }
 
 func ImageWithDigest(kc kubernetes.Interface, image string, k8sOpts *k8schain.Options) (string, error) {
@@ -75,10 +79,25 @@ func ImageWithDigest(kc kubernetes.Interface, image string, k8sOpts *k8schain.Op
 
 	digest, err := crane.Digest(image, crane.WithAuthFromKeychain(keyChain), WithTLSSkipVerify(image))
 	if err != nil {
+		var ce *tls.CertificateVerificationError
+		if errors.As(err, &ce) {
+			klog.ErrorS(err, "UnverifiedCertificates")
+			for _, cert := range ce.UnverifiedCertificates {
+				klog.Errorln(string(encodeCertPEM(cert)))
+			}
+		}
 		return "", err
 	}
 
 	return image + "@" + digest, nil
+}
+
+func encodeCertPEM(cert *x509.Certificate) []byte {
+	block := pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: cert.Raw,
+	}
+	return pem.EncodeToMemory(&block)
 }
 
 // CreateKeyChain a multi keychain based in input arguments
@@ -152,7 +171,7 @@ func probablyInsecureRegistry(s string) bool {
 	parts := strings.Split(s, "/")
 	if len(parts) > 1 && strings.ContainsRune(parts[0], '.') {
 		once.Do(func() {
-			insecureRegistrySet = sets.NewString(insecureRegistries...)
+			insecureRegistrySet = sets.New[string](insecureRegistries...)
 		})
 		if insecureRegistrySet.Has(parts[0]) {
 			return true
