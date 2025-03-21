@@ -36,8 +36,7 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(v.NewCmdVersion())
 
 	ctx := genericapiserver.SetupSignalContext()
-	rootCmd.AddCommand(NewCmdOperator(ctx))
-	rootCmd.AddCommand(NewCmdWebhook(ctx))
+	rootCmd.AddCommand(NewCmdRun(ctx))
 
 	return rootCmd
 }
