@@ -425,7 +425,7 @@ install:
 	@cd ../installer; \
 	kubectl create ns $(KUBE_NAMESPACE) || true; \
 	kubectl label ns $(KUBE_NAMESPACE) pod-security.kubernetes.io/enforce=restricted; \
-	helm upgrade -i petset charts/petset --wait --debug --force \
+	helm upgrade -i petset charts/petset --wait --force \
 		--namespace=$(KUBE_NAMESPACE) --create-namespace \
 		--set registryFQDN="" \
 		--set image.registry=$(REGISTRY) \
