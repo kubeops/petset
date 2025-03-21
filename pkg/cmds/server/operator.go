@@ -23,42 +23,66 @@ import (
 
 	"kubeops.dev/petset/client/clientset/versioned"
 	apiinformers "kubeops.dev/petset/client/informers/externalversions"
-	"kubeops.dev/petset/pkg/controller"
-	"kubeops.dev/petset/pkg/controller/petset"
 	"kubeops.dev/petset/pkg/features"
 
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"kmodules.xyz/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 type OperatorOptions struct {
-	QPS            float64
-	Burst          int
+	QPS   float64
+	Burst int
+
 	ResyncPeriod   time.Duration
 	MaxNumRequeues int
 	NumThreads     int
+
+	MetricsAddr          string
+	CertDir              string
+	EnableLeaderElection bool
+	ProbeAddr            string
+	SecureMetrics        bool
+	EnableHTTP2          bool
 }
 
 func NewOperatorOptions() *OperatorOptions {
 	return &OperatorOptions{
-		ResyncPeriod:   10 * time.Minute,
-		MaxNumRequeues: 5,
-		NumThreads:     5,
 		// ref: https://github.com/kubernetes/ingress-nginx/blob/e4d53786e771cc6bdd55f180674b79f5b692e552/pkg/ingress/controller/launch.go#L252-L259
 		// High enough QPS to fit all expected use cases. QPS=0 is not set here, because client code is overriding it.
 		QPS: 1e6,
 		// High enough Burst to fit all expected use cases. Burst=0 is not set here, because client code is overriding it.
-		Burst: 1e6,
+		Burst:                1e6,
+		ResyncPeriod:         10 * time.Minute,
+		MaxNumRequeues:       5,
+		NumThreads:           5,
+		MetricsAddr:          "0",
+		ProbeAddr:            ":8081",
+		EnableLeaderElection: false,
+		SecureMetrics:        true,
+		CertDir:              "",
+		EnableHTTP2:          false,
 	}
 }
 
 func (s *OperatorOptions) AddGoFlags(fs *flag.FlagSet) {
 	fs.Float64Var(&s.QPS, "qps", s.QPS, "The maximum QPS to the master from this client")
 	fs.IntVar(&s.Burst, "burst", s.Burst, "The maximum burst for throttle")
+
 	fs.DurationVar(&s.ResyncPeriod, "resync-period", s.ResyncPeriod, "If non-zero, will re-list this often. Otherwise, re-list will be delayed aslong as possible (until the upstream source closes the watch or times out.")
+
+	fs.StringVar(&s.MetricsAddr, "metrics-bind-address", s.MetricsAddr, "The address the metrics endpoint binds to. "+
+		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
+	fs.StringVar(&s.ProbeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	fs.BoolVar(&s.EnableLeaderElection, "leader-elect", s.EnableLeaderElection,
+		"Enable leader election for controller manager. "+
+			"Enabling this will ensure there is only one active controller manager.")
+	fs.BoolVar(&s.SecureMetrics, "metrics-secure", s.SecureMetrics,
+		"If set, the metrics endpoint is served securely via HTTPS. Use --metrics-secure=false to use HTTP instead.")
+	fs.StringVar(&s.CertDir, "cert-dir", s.CertDir, "The directory that contains the webhook and metrics server certificate.")
+	fs.BoolVar(&s.EnableHTTP2, "enable-http2", s.EnableHTTP2,
+		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
 }
 
 func (s *OperatorOptions) AddFlags(fs *pflag.FlagSet) {
@@ -68,7 +92,7 @@ func (s *OperatorOptions) AddFlags(fs *pflag.FlagSet) {
 	features.DefaultMutableFeatureGate.AddFlag(fs)
 }
 
-func (s *OperatorOptions) ApplyTo(cfg *controller.OperatorConfig) error {
+func (s *OperatorOptions) ApplyTo(cfg *OperatorConfig) error {
 	var err error
 
 	cfg.ClientConfig.QPS = float32(s.QPS)
@@ -86,6 +110,13 @@ func (s *OperatorOptions) ApplyTo(cfg *controller.OperatorConfig) error {
 	cfg.KubeInformerFactory = informers.NewSharedInformerFactory(cfg.KubeClient, cfg.ResyncPeriod)
 	cfg.InformerFactory = apiinformers.NewSharedInformerFactory(cfg.Client, cfg.ResyncPeriod)
 
+	cfg.MetricsAddr = s.MetricsAddr
+	cfg.ProbeAddr = s.ProbeAddr
+	cfg.EnableLeaderElection = s.EnableLeaderElection
+	cfg.SecureMetrics = s.SecureMetrics
+	cfg.CertDir = s.CertDir
+	cfg.EnableHTTP2 = s.EnableHTTP2
+
 	return nil
 }
 
@@ -97,16 +128,15 @@ func (s *OperatorOptions) Complete() error {
 	return nil
 }
 
-func (s OperatorOptions) Config() (*controller.OperatorConfig, error) {
+func (s OperatorOptions) Config() (*OperatorConfig, error) {
 	clientConfig, err := ctrl.GetConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	// Fixes https://github.com/Azure/AKS/issues/522
-	clientcmd.Fix(clientConfig)
-
-	cfg := controller.NewOperatorConfig(clientConfig)
+	cfg := &OperatorConfig{
+		ClientConfig: clientConfig,
+	}
 	if err := s.ApplyTo(cfg); err != nil {
 		return nil, err
 	}
@@ -120,20 +150,9 @@ func (s OperatorOptions) Run(ctx context.Context) error {
 		return err
 	}
 
-	ctrl := petset.NewPetSetController(
-		ctx,
-		cfg.KubeInformerFactory.Core().V1().Pods(),
-		cfg.InformerFactory.Apps().V1().PetSets(),
-		cfg.InformerFactory.Apps().V1().PlacementPolicies(),
-		cfg.KubeInformerFactory.Core().V1().PersistentVolumeClaims(),
-		cfg.KubeInformerFactory.Apps().V1().ControllerRevisions(),
-		cfg.KubeClient,
-		cfg.Client,
-	)
-
-	cfg.KubeInformerFactory.Start(ctx.Done())
-	cfg.InformerFactory.Start(ctx.Done())
-
-	ctrl.Run(ctx, cfg.NumThreads)
-	return nil
+	mgr, err := cfg.New(ctx)
+	if err != nil {
+		return err
+	}
+	return mgr.Start(ctx)
 }
