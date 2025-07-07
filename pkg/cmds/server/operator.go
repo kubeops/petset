@@ -19,11 +19,13 @@ package server
 import (
 	"context"
 	"flag"
+	manifestclient "open-cluster-management.io/api/client/work/clientset/versioned"
 	"time"
 
 	"kubeops.dev/petset/client/clientset/versioned"
 	apiinformers "kubeops.dev/petset/client/informers/externalversions"
 	"kubeops.dev/petset/pkg/features"
+	manifestinformers "open-cluster-management.io/api/client/work/informers/externalversions"
 
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/informers"
@@ -107,9 +109,12 @@ func (s *OperatorOptions) ApplyTo(cfg *OperatorConfig) error {
 	if cfg.Client, err = versioned.NewForConfig(cfg.ClientConfig); err != nil {
 		return err
 	}
+	if cfg.manifestClient, err = manifestclient.NewForConfig(cfg.ClientConfig); err != nil {
+		return err
+	}
 	cfg.KubeInformerFactory = informers.NewSharedInformerFactory(cfg.KubeClient, cfg.ResyncPeriod)
 	cfg.InformerFactory = apiinformers.NewSharedInformerFactory(cfg.Client, cfg.ResyncPeriod)
-
+	cfg.ManifestInformerFactory = manifestinformers.NewSharedInformerFactory(cfg.manifestClient, cfg.ResyncPeriod)
 	cfg.MetricsAddr = s.MetricsAddr
 	cfg.ProbeAddr = s.ProbeAddr
 	cfg.EnableLeaderElection = s.EnableLeaderElection

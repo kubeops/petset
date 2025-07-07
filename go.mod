@@ -1,6 +1,6 @@
 module kubeops.dev/petset
 
-go 1.23.0
+go 1.23.6
 
 toolchain go1.24.0
 
@@ -25,6 +25,7 @@ require (
 	k8s.io/utils v0.0.0-20241210054802-24370beab758
 	kmodules.xyz/client-go v0.32.1
 	kmodules.xyz/go-containerregistry v0.0.14
+	open-cluster-management.io/api v1.0.0
 	sigs.k8s.io/controller-runtime v0.20.3
 	sigs.k8s.io/yaml v1.4.0
 )
@@ -162,7 +163,6 @@ require (
 	google.golang.org/protobuf v1.36.3 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiextensions-apiserver v0.32.2 // indirect
 	k8s.io/cloud-provider v0.32.2 // indirect

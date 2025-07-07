@@ -27,6 +27,7 @@ import (
 	apiinformers "kubeops.dev/petset/client/informers/externalversions"
 	"kubeops.dev/petset/pkg/controller/petset"
 	webhooks "kubeops.dev/petset/pkg/webhooks/apps/v1"
+	manifestclient "open-cluster-management.io/api/client/work/clientset/versioned"
 
 	core "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
@@ -34,6 +35,7 @@ import (
 	clientscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
+	manifestinformers "open-cluster-management.io/api/client/work/informers/externalversions"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
@@ -47,11 +49,14 @@ import (
 var setupLog = ctrl.Log.WithName("setup")
 
 type OperatorConfig struct {
-	ClientConfig        *rest.Config
-	KubeClient          kubernetes.Interface
-	Client              versioned.Interface
-	KubeInformerFactory informers.SharedInformerFactory
-	InformerFactory     apiinformers.SharedInformerFactory
+	ClientConfig *rest.Config
+
+	manifestClient          manifestclient.Interface
+	KubeClient              kubernetes.Interface
+	Client                  versioned.Interface
+	KubeInformerFactory     informers.SharedInformerFactory
+	InformerFactory         apiinformers.SharedInformerFactory
+	ManifestInformerFactory manifestinformers.SharedInformerFactory
 
 	ResyncPeriod   time.Duration
 	MaxNumRequeues int
@@ -194,12 +199,14 @@ func (c *OperatorConfig) New(ctx context.Context) (manager.Manager, error) {
 		c.InformerFactory.Apps().V1().PlacementPolicies(),
 		c.KubeInformerFactory.Core().V1().PersistentVolumeClaims(),
 		c.KubeInformerFactory.Apps().V1().ControllerRevisions(),
+		c.ManifestInformerFactory.Work().V1().ManifestWorks(),
 		c.KubeClient,
 		c.Client,
 	)
 
 	c.KubeInformerFactory.Start(ctx.Done())
 	c.InformerFactory.Start(ctx.Done())
+	c.ManifestInformerFactory.Start(ctx.Done())
 
 	if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
 		psCtrl.Run(ctx, c.NumThreads)

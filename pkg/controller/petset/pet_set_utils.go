@@ -19,6 +19,7 @@ package petset
 import (
 	"encoding/json"
 	"fmt"
+	apiworkv1 "open-cluster-management.io/api/work/v1"
 	"regexp"
 	"strconv"
 
@@ -75,9 +76,32 @@ func getParentNameAndOrdinal(pod *v1.Pod) (string, int) {
 	return parent, ordinal
 }
 
+// getParentNameAndOrdinalFromManifestWork gets the name of pod's parent PetSet and pod's ordinal as extracted from its Name. If
+// the Pod was not created by a PetSet, its parent is considered to be empty string, and its ordinal is considered
+// to be -1.
+func getParentNameAndOrdinalFromManifestWork(mw *apiworkv1.ManifestWork) (string, int) {
+	parent := ""
+	ordinal := -1
+	subMatches := statefulPodRegex.FindStringSubmatch(mw.Name)
+	if len(subMatches) < 3 {
+		return parent, ordinal
+	}
+	parent = subMatches[1]
+	if i, err := strconv.ParseInt(subMatches[2], 10, 32); err == nil {
+		ordinal = int(i)
+	}
+	return parent, ordinal
+}
+
 // getParentName gets the name of pod's parent PetSet. If pod has not parent, the empty string is returned.
 func getParentName(pod *v1.Pod) string {
 	parent, _ := getParentNameAndOrdinal(pod)
+	return parent
+}
+
+// getParentName gets the name of pod's parent PetSet. If pod has not parent, the empty string is returned.
+func getParentNameForManifestWork(mw *apiworkv1.ManifestWork) string {
+	parent, _ := getParentNameAndOrdinalFromManifestWork(mw)
 	return parent
 }
 
@@ -125,6 +149,11 @@ func getPersistentVolumeClaimName(set *api.PetSet, claim *v1.PersistentVolumeCla
 // isMemberOf tests if pod is a member of set.
 func isMemberOf(set *api.PetSet, pod *v1.Pod) bool {
 	return getParentName(pod) == set.Name
+}
+
+// isMemberOf tests if pod is a member of set.
+func isManifestWorkMemberOfPetSet(set *api.PetSet, mw *apiworkv1.ManifestWork) bool {
+	return getParentNameForManifestWork(mw) == set.Name
 }
 
 // identityMatches returns true if pod has a valid identity and network identity for a member of set.

@@ -18,6 +18,7 @@ package v1
 
 import (
 	"fmt"
+	apiworkv1 "open-cluster-management.io/api/work/v1"
 
 	api "kubeops.dev/petset/apis/apps/v1"
 
@@ -30,6 +31,7 @@ import (
 // PetSetLister.
 type PetSetListerExpansion interface {
 	GetPodPetSets(pod *v1.Pod) ([]*api.PetSet, error)
+	GetManifestWorksPetSets(mw *apiworkv1.ManifestWork) ([]*api.PetSet, error)
 }
 
 // PetSetNamespaceListerExpansion allows custom methods to be added to
@@ -73,6 +75,48 @@ func (s *petSetLister) GetPodPetSets(pod *v1.Pod) ([]*api.PetSet, error) {
 
 	if len(psList) == 0 {
 		return nil, fmt.Errorf("could not find PetSet for pod %s in namespace %s with labels: %v", pod.Name, pod.Namespace, pod.Labels)
+	}
+
+	return psList, nil
+}
+
+// GetPodPetSets returns a list of PetSets that potentially match a pod.
+// Only the one specified in the Pod's ControllerRef will actually manage it.
+// Returns an error only if no matching PetSets are found.
+func (s *petSetLister) GetManifestWorksPetSets(mw *apiworkv1.ManifestWork) ([]*api.PetSet, error) {
+	var selector labels.Selector
+	var ps *api.PetSet
+
+	if len(mw.Labels) == 0 {
+		return nil, fmt.Errorf("no PetSets found for manifeswork %v because it has no labels", mw.Name)
+	}
+
+	list, err := s.PetSets(mw.Namespace).List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
+
+	var psList []*api.PetSet
+	for i := range list {
+		ps = list[i]
+		if ps.Namespace != mw.Namespace {
+			continue
+		}
+		selector, err = metav1.LabelSelectorAsSelector(ps.Spec.Selector)
+		if err != nil {
+			// This object has an invalid selector, it does not match the pod
+			continue
+		}
+
+		// If a PetSet with a nil or empty selector creeps in, it should match nothing, not everything.
+		if selector.Empty() || !selector.Matches(labels.Set(mw.Labels)) {
+			continue
+		}
+		psList = append(psList, ps)
+	}
+
+	if len(psList) == 0 {
+		return nil, fmt.Errorf("could not find PetSet for manifeswork %s in namespace %s with labels: %v", mw.Name, mw.Namespace, mw.Labels)
 	}
 
 	return psList, nil

@@ -19,17 +19,6 @@ package petset
 import (
 	"context"
 	"fmt"
-	"reflect"
-	"time"
-
-	api "kubeops.dev/petset/apis/apps/v1"
-	"kubeops.dev/petset/client/clientset/versioned"
-	stsinformers "kubeops.dev/petset/client/informers/externalversions/apps/v1"
-	apilisters "kubeops.dev/petset/client/listers/apps/v1"
-	podutil "kubeops.dev/petset/pkg/api/v1/pod"
-	"kubeops.dev/petset/pkg/controller"
-	"kubeops.dev/petset/pkg/controller/history"
-
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -47,6 +36,19 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+	api "kubeops.dev/petset/apis/apps/v1"
+	"kubeops.dev/petset/client/clientset/versioned"
+	stsinformers "kubeops.dev/petset/client/informers/externalversions/apps/v1"
+	apilisters "kubeops.dev/petset/client/listers/apps/v1"
+	podutil "kubeops.dev/petset/pkg/api/v1/pod"
+	"kubeops.dev/petset/pkg/controller"
+	"kubeops.dev/petset/pkg/controller/history"
+	manifestinformers "open-cluster-management.io/api/client/work/informers/externalversions/work/v1"
+	manifestlisters "open-cluster-management.io/api/client/work/listers/work/v1"
+	apiworkv1 "open-cluster-management.io/api/work/v1"
+	"reflect"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"time"
 )
 
 // controllerKind contains the schema.GroupVersionKind for this controller type.
@@ -54,6 +56,8 @@ var controllerKind = api.SchemeGroupVersion.WithKind("PetSet")
 
 // PetSetController controls petsets.
 type PetSetController struct {
+	// KBClient is kubebuilder cache client
+	kbClient *client.Client
 	// client interface
 	client clientset.Interface
 	// client interface
@@ -77,6 +81,11 @@ type PetSetController struct {
 	placementListerSynced cache.InformerSynced
 	// revListerSynced returns true if the rev shared informer has synced at least once
 	revListerSynced cache.InformerSynced
+
+	// manifestWorkerLister is able to list/get manifestWork from a shared informer's store
+	manifestLister manifestlisters.ManifestWorkLister
+	// manifestListerSynced returns true if the pvc shared informer has synced at least once
+	manifestListerSynced cache.InformerSynced
 	// PetSets that need to be synced.
 	queue workqueue.RateLimitingInterface
 	// eventBroadcaster is the core of event processing pipeline.
@@ -91,6 +100,7 @@ func NewPetSetController(
 	placementInformer stsinformers.PlacementPolicyInformer,
 	pvcInformer coreinformers.PersistentVolumeClaimInformer,
 	revInformer appsinformers.ControllerRevisionInformer,
+	manifestInformer manifestinformers.ManifestWorkInformer,
 	kubeClient clientset.Interface,
 	apiClient versioned.Interface,
 ) *PetSetController {
@@ -134,8 +144,27 @@ func NewPetSetController(
 			ssc.deletePod(logger, obj)
 		},
 	})
+
 	ssc.podLister = podInformer.Lister()
 	ssc.podListerSynced = podInformer.Informer().HasSynced
+
+	manifestInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		// lookup the petset and enqueue
+		AddFunc: func(obj interface{}) {
+			ssc.addManifestWork(logger, obj)
+		},
+		// lookup current and old petset if labels changed
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			ssc.updateManifestWork(logger, oldObj, newObj)
+		},
+		// lookup petset accounting for deletion tombstones
+		DeleteFunc: func(obj interface{}) {
+			ssc.deleteManifestWork(logger, obj)
+		},
+	})
+
+	ssc.manifestLister = manifestInformer.Lister()
+	ssc.manifestListerSynced = manifestInformer.Informer().HasSynced
 
 	setInformer.Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
@@ -329,6 +358,152 @@ func (ssc *PetSetController) getPodsForPetSet(ctx context.Context, set *api.PetS
 	return cm.ClaimPods(ctx, pods, filter)
 }
 
+// addManifest adds the petset for the manifestwork to the sync queue
+func (ssc *PetSetController) addManifestWork(logger klog.Logger, obj interface{}) {
+	mw := obj.(*apiworkv1.ManifestWork)
+
+	if mw.DeletionTimestamp != nil {
+		// on a restart of the controller manager, it's possible a new pod shows up in a state that
+		// is already pending deletion. Prevent the pod from being a creation observation.
+		ssc.deleteManifestWork(logger, mw)
+		return
+	}
+
+	// If it has a ControllerRef, that's all that matters.
+	if controllerRef := metav1.GetControllerOf(mw); controllerRef != nil {
+		set := ssc.resolveControllerRef(mw.Namespace, controllerRef)
+		if set == nil {
+			return
+		}
+		logger.V(4).Info("ManifestWork created with labels", "manifestwork", klog.KObj(mw), "labels", mw.Labels)
+		ssc.enqueuePetSet(set)
+		return
+	}
+
+	// Otherwise, it's an orphan. Get a list of all matching controllers and sync
+	// them to see if anyone wants to adopt it.
+	sets := ssc.getPetSetsForManifestWorks(mw)
+	if len(sets) == 0 {
+		return
+	}
+	logger.V(4).Info("Orphan manifeswork created with labels", "manifeswork", klog.KObj(mw), "labels", mw.Labels)
+	for _, set := range sets {
+		ssc.enqueuePetSet(set)
+	}
+}
+
+// updateManifestWork adds the petset for the current and ManifestWork pods to the sync queue.
+func (ssc *PetSetController) updateManifestWork(logger klog.Logger, old, cur interface{}) {
+	curMW := cur.(*apiworkv1.ManifestWork)
+	oldMW := old.(*apiworkv1.ManifestWork)
+	if curMW.ResourceVersion == oldMW.ResourceVersion {
+		// In the event of a re-list we may receive update events for all known pods.
+		// Two different versions of the same pod will always have different RVs.
+		return
+	}
+
+	labelChanged := !reflect.DeepEqual(curMW.Labels, oldMW.Labels)
+
+	curControllerRef := metav1.GetControllerOf(curMW)
+	oldControllerRef := metav1.GetControllerOf(oldMW)
+	controllerRefChanged := !reflect.DeepEqual(curControllerRef, oldControllerRef)
+	if controllerRefChanged && oldControllerRef != nil {
+		// The ControllerRef was changed. Sync the old controller, if any.
+		if set := ssc.resolveControllerRef(oldMW.Namespace, oldControllerRef); set != nil {
+			ssc.enqueuePetSet(set)
+		}
+	}
+
+	// If it has a ControllerRef, that's all that matters.
+	if curControllerRef != nil {
+		set := ssc.resolveControllerRef(curMW.Namespace, curControllerRef)
+		if set == nil {
+			return
+		}
+		logger.V(4).Info("manifesWork objectMeta updated", "manifeswork", klog.KObj(curMW), "oldObjectMeta", oldMW.ObjectMeta, "newObjectMeta", curMW.ObjectMeta)
+		ssc.enqueuePetSet(set)
+		// TODO: MinReadySeconds in the Pod will generate an Available condition to be added in
+		// the Pod status which in turn will trigger a requeue of the owning replica set thus
+		// having its status updated with the newly available replica.
+		// TODO: read from feedback
+		//if !podutil.IsPodReady(oldMW) && podutil.IsPodReady(curMW) && set.Spec.MinReadySeconds > 0 {
+		//	logger.V(2).Info("PetSet will be enqueued after minReadySeconds for availability check", "statefulSet", klog.KObj(set), "minReadySeconds", set.Spec.MinReadySeconds)
+		//	// Add a second to avoid milliseconds skew in AddAfter.
+		//	// See https://github.com/kubernetes/kubernetes/issues/39785#issuecomment-279959133 for more info.
+		//	ssc.enqueueSSAfter(set, (time.Duration(set.Spec.MinReadySeconds)*time.Second)+time.Second)
+		//}
+		return
+	}
+
+	// Otherwise, it's an orphan. If anything changed, sync matching controllers
+	// to see if anyone wants to adopt it now.
+	if labelChanged || controllerRefChanged {
+		sets := ssc.getPetSetsForManifestWorks(curMW)
+		if len(sets) == 0 {
+			return
+		}
+		logger.V(4).Info("Orphan ManifestWork objectMeta updated", "manifest", klog.KObj(curMW), "oldObjectMeta", oldMW.ObjectMeta, "newObjectMeta", curMW.ObjectMeta)
+		for _, set := range sets {
+			ssc.enqueuePetSet(set)
+		}
+	}
+}
+
+// deleteManifestWork enqueues the petset for the ManifestWork accounting for deletion tombstones.
+func (ssc *PetSetController) deleteManifestWork(logger klog.Logger, obj interface{}) {
+	mw, ok := obj.(*apiworkv1.ManifestWork)
+
+	// When a delete is dropped, the relist will notice a pod in the store not
+	// in the list, leading to the insertion of a tombstone object which contains
+	// the deleted key/value. Note that this value might be stale.
+	if !ok {
+		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+		if !ok {
+			utilruntime.HandleError(fmt.Errorf("couldn't get object from tombstone %+v", obj))
+			return
+		}
+		mw, ok = tombstone.Obj.(*apiworkv1.ManifestWork)
+		if !ok {
+			utilruntime.HandleError(fmt.Errorf("tombstone contained object that is not a manifestwork %+v", obj))
+			return
+		}
+	}
+
+	controllerRef := metav1.GetControllerOf(mw)
+	if controllerRef == nil {
+		// No controller should care about orphans being deleted.
+		return
+	}
+	set := ssc.resolveControllerRef(mw.Namespace, controllerRef)
+	if set == nil {
+		return
+	}
+	logger.V(4).Info("ManifestWork deleted.", "manifestwork", klog.KObj(mw), "caller", utilruntime.GetCaller())
+	ssc.enqueuePetSet(set)
+}
+
+// getPodsForPetSet returns the Pods that a given PetSet should manage.
+// It also reconciles ControllerRef by adopting/orphaning.
+//
+// NOTE: Returned Pods are pointers to objects from the cache.
+// If you need to modify one, you need to copy it first.
+func (ssc *PetSetController) getManifestWorkForPetSet(ctx context.Context, set *api.PetSet, selector labels.Selector) ([]*apiworkv1.ManifestWork, error) {
+	// List all pods to include the pods that don't match the selector anymore but
+	// has a ControllerRef pointing to this PetSet.
+	mws, err := ssc.manifestLister.ManifestWorks(set.Namespace).List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
+
+	filter := func(mw *apiworkv1.ManifestWork) bool {
+		// Only claim if it matches our PetSet name. Otherwise release/ignore.
+		return isManifestWorkMemberOfPetSet(set, mw)
+	}
+
+	cm := controller.NewPodControllerRefManager(ssc.podControl, set, selector, controllerKind, ssc.canAdoptFunc(ctx, set))
+	return cm.ClaimPods(ctx, pods, filter)
+}
+
 // If any adoptions are attempted, we should first recheck for deletion with
 // an uncached quorum read sometime after listing Pods/ControllerRevisions (see #42639).
 func (ssc *PetSetController) canAdoptFunc(ctx context.Context, set *api.PetSet) func(ctx2 context.Context) error {
@@ -385,6 +560,29 @@ func (ssc *PetSetController) getPetSetsForPod(pod *v1.Pod) []*api.PetSet {
 			fmt.Errorf(
 				"user error: more than one PetSet is selecting pods with labels: %+v. Sets: %v",
 				pod.Labels, setNames))
+	}
+	return sets
+}
+
+// getPetSetsForPod returns a list of PetSets that potentially match
+// a given pod.
+func (ssc *PetSetController) getPetSetsForManifestWorks(mw *apiworkv1.ManifestWork) []*api.PetSet {
+	sets, err := ssc.setLister.GetManifestWorksPetSets(mw)
+	if err != nil {
+		return nil
+	}
+	// More than one set is selecting the same Pod
+	if len(sets) > 1 {
+		// ControllerRef will ensure we don't do anything crazy, but more than one
+		// item in this list nevertheless constitutes user error.
+		setNames := []string{}
+		for _, s := range sets {
+			setNames = append(setNames, s.Name)
+		}
+		utilruntime.HandleError(
+			fmt.Errorf(
+				"user error: more than one PetSet is selecting manifeswork with labels: %+v. Sets: %v",
+				mw.Labels, setNames))
 	}
 	return sets
 }
