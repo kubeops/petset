@@ -57,7 +57,7 @@ var controllerKind = api.SchemeGroupVersion.WithKind("PetSet")
 // PetSetController controls petsets.
 type PetSetController struct {
 	// KBClient is kubebuilder cache client
-	kbClient *client.Client
+	KBClient client.Client
 	// client interface
 	client clientset.Interface
 	// client interface
@@ -342,6 +342,7 @@ func (ssc *PetSetController) deletePod(logger klog.Logger, obj interface{}) {
 // NOTE: Returned Pods are pointers to objects from the cache.
 // If you need to modify one, you need to copy it first.
 func (ssc *PetSetController) getPodsForPetSet(ctx context.Context, set *api.PetSet, selector labels.Selector) ([]*v1.Pod, error) {
+
 	// List all pods to include the pods that don't match the selector anymore but
 	// has a ControllerRef pointing to this PetSet.
 	pods, err := ssc.podLister.Pods(set.Namespace).List(labels.Everything())
@@ -487,7 +488,7 @@ func (ssc *PetSetController) deleteManifestWork(logger klog.Logger, obj interfac
 //
 // NOTE: Returned Pods are pointers to objects from the cache.
 // If you need to modify one, you need to copy it first.
-func (ssc *PetSetController) getManifestWorkForPetSet(ctx context.Context, set *api.PetSet, selector labels.Selector) ([]*apiworkv1.ManifestWork, error) {
+func (ssc *PetSetController) getPodsFromManifestWorkForPetSet(ctx context.Context, set *api.PetSet, selector labels.Selector) ([]*v1.Pod, error) {
 	// List all pods to include the pods that don't match the selector anymore but
 	// has a ControllerRef pointing to this PetSet.
 	mws, err := ssc.manifestLister.ManifestWorks(set.Namespace).List(labels.Everything())
@@ -683,6 +684,9 @@ func (ssc *PetSetController) sync(ctx context.Context, key string) error {
 	if err := ssc.adoptOrphanRevisions(ctx, set); err != nil {
 		return err
 	}
+
+	// TODO: check if any manifestwork object has to be removed
+	// Use case: user set set.spec.distributed = false
 
 	pods, err := ssc.getPodsForPetSet(ctx, set, selector)
 	if err != nil {

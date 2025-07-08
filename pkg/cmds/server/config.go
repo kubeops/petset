@@ -32,7 +32,6 @@ import (
 	core "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	clientscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	manifestinformers "open-cluster-management.io/api/client/work/informers/externalversions"
@@ -68,6 +67,8 @@ type OperatorConfig struct {
 	ProbeAddr            string
 	SecureMetrics        bool
 	EnableHTTP2          bool
+
+	IsDistributed bool
 }
 
 // New returns a new instance of KubeDBWebhookServer from the given config.
@@ -143,7 +144,7 @@ func (c *OperatorConfig) New(ctx context.Context) (manager.Manager, error) {
 	}
 
 	mgr, err := ctrl.NewManager(c.ClientConfig, ctrl.Options{
-		Scheme:                 clientscheme.Scheme,
+		Scheme:                 Scheme,
 		Metrics:                metricsServerOptions,
 		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: c.ProbeAddr,
@@ -209,6 +210,7 @@ func (c *OperatorConfig) New(ctx context.Context) (manager.Manager, error) {
 	c.ManifestInformerFactory.Start(ctx.Done())
 
 	if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
+		psCtrl.KBClient = mgr.GetClient()
 		psCtrl.Run(ctx, c.NumThreads)
 		return nil
 	})); err != nil {

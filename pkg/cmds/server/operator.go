@@ -19,7 +19,10 @@ package server
 import (
 	"context"
 	"flag"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	manifestclient "open-cluster-management.io/api/client/work/clientset/versioned"
+	apiworkv1 "open-cluster-management.io/api/work/v1"
 	"time"
 
 	"kubeops.dev/petset/client/clientset/versioned"
@@ -30,8 +33,16 @@ import (
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
+
+var Scheme = runtime.NewScheme()
+
+func init() {
+	utilruntime.Must(clientsetscheme.AddToScheme(Scheme))
+	utilruntime.Must(apiworkv1.AddToScheme(Scheme))
+}
 
 type OperatorOptions struct {
 	QPS   float64
