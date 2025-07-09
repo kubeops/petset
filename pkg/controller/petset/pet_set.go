@@ -19,6 +19,17 @@ package petset
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"time"
+
+	api "kubeops.dev/petset/apis/apps/v1"
+	"kubeops.dev/petset/client/clientset/versioned"
+	stsinformers "kubeops.dev/petset/client/informers/externalversions/apps/v1"
+	apilisters "kubeops.dev/petset/client/listers/apps/v1"
+	podutil "kubeops.dev/petset/pkg/api/v1/pod"
+	"kubeops.dev/petset/pkg/controller"
+	"kubeops.dev/petset/pkg/controller/history"
+
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -36,20 +47,11 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-	api "kubeops.dev/petset/apis/apps/v1"
-	"kubeops.dev/petset/client/clientset/versioned"
-	stsinformers "kubeops.dev/petset/client/informers/externalversions/apps/v1"
-	apilisters "kubeops.dev/petset/client/listers/apps/v1"
-	podutil "kubeops.dev/petset/pkg/api/v1/pod"
-	"kubeops.dev/petset/pkg/controller"
-	"kubeops.dev/petset/pkg/controller/history"
 	manifestclient "open-cluster-management.io/api/client/work/clientset/versioned"
 	manifestinformers "open-cluster-management.io/api/client/work/informers/externalversions/work/v1"
 	manifestlisters "open-cluster-management.io/api/client/work/listers/work/v1"
 	apiworkv1 "open-cluster-management.io/api/work/v1"
-	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 )
 
 // controllerKind contains the schema.GroupVersionKind for this controller type.
@@ -346,7 +348,6 @@ func (ssc *PetSetController) deletePod(logger klog.Logger, obj interface{}) {
 // NOTE: Returned Pods are pointers to objects from the cache.
 // If you need to modify one, you need to copy it first.
 func (ssc *PetSetController) getPodsForPetSet(ctx context.Context, set *api.PetSet, selector labels.Selector) ([]*v1.Pod, error) {
-
 	// List all pods to include the pods that don't match the selector anymore but
 	// has a ControllerRef pointing to this PetSet.
 	pods, err := ssc.podLister.Pods(set.Namespace).List(labels.Everything())

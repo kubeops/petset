@@ -19,8 +19,6 @@ package petset
 import (
 	"context"
 	"fmt"
-	manifestclient "open-cluster-management.io/api/client/work/clientset/versioned"
-	manifestlisters "open-cluster-management.io/api/client/work/listers/work/v1"
 	"strings"
 
 	api "kubeops.dev/petset/apis/apps/v1"
@@ -38,6 +36,8 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	manifestclient "open-cluster-management.io/api/client/work/clientset/versioned"
+	manifestlisters "open-cluster-management.io/api/client/work/listers/work/v1"
 )
 
 // StatefulPodControlObjectManager abstracts the manipulation of Pods and PVCs. The real controller implements this
@@ -84,7 +84,8 @@ func NewStatefulPodControl(
 		//	placementLister: placementLister,
 		//	claimLister:     claimLister,
 		//},
-		&realStatefulPodControlObjectManager{mClient, client, podLister, manifestLister, placementLister, claimLister}, recorder}
+		&realStatefulPodControlObjectManager{mClient, client, podLister, manifestLister, placementLister, claimLister}, recorder,
+	}
 }
 
 // NewStatefulPodControlFromManager creates a StatefulPodControl using the given StatefulPodControlObjectManager and recorder.

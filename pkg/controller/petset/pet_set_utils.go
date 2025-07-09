@@ -19,7 +19,6 @@ package petset
 import (
 	"encoding/json"
 	"fmt"
-	apiworkv1 "open-cluster-management.io/api/work/v1"
 	"regexp"
 	"strconv"
 
@@ -37,6 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
+	apiworkv1 "open-cluster-management.io/api/work/v1"
 )
 
 var patchCodec = scheme.Codecs.LegacyCodec(api.SchemeGroupVersion)

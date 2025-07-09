@@ -62,7 +62,6 @@ type PetSet struct {
 
 // A PetSetSpec is the specification of a PetSet.
 type PetSetSpec struct {
-
 	// Distributed means manifestworks will be used to manage pods
 	Distributed bool `json:"distributed,omitempty"`
 

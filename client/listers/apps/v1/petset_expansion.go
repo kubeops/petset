@@ -18,13 +18,13 @@ package v1
 
 import (
 	"fmt"
-	apiworkv1 "open-cluster-management.io/api/work/v1"
 
 	api "kubeops.dev/petset/apis/apps/v1"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	apiworkv1 "open-cluster-management.io/api/work/v1"
 )
 
 // PetSetListerExpansion allows custom methods to be added to

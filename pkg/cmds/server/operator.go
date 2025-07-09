@@ -19,21 +19,22 @@ package server
 import (
 	"context"
 	"flag"
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	manifestclient "open-cluster-management.io/api/client/work/clientset/versioned"
-	apiworkv1 "open-cluster-management.io/api/work/v1"
 	"time"
 
+	api "kubeops.dev/petset/apis/apps/v1"
 	"kubeops.dev/petset/client/clientset/versioned"
 	apiinformers "kubeops.dev/petset/client/informers/externalversions"
 	"kubeops.dev/petset/pkg/features"
-	manifestinformers "open-cluster-management.io/api/client/work/informers/externalversions"
 
 	"github.com/spf13/pflag"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
+	manifestclient "open-cluster-management.io/api/client/work/clientset/versioned"
+	manifestinformers "open-cluster-management.io/api/client/work/informers/externalversions"
+	apiworkv1 "open-cluster-management.io/api/work/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -42,6 +43,7 @@ var Scheme = runtime.NewScheme()
 func init() {
 	utilruntime.Must(clientsetscheme.AddToScheme(Scheme))
 	utilruntime.Must(apiworkv1.AddToScheme(Scheme))
+	utilruntime.Must(api.AddToScheme(Scheme))
 }
 
 type OperatorOptions struct {
