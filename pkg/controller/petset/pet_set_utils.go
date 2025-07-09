@@ -500,6 +500,29 @@ func newPetSetPod(set *api.PetSet, placementPolicy *api.PlacementPolicy, ordinal
 	pod.Name = getPodName(set, ordinal)
 	initIdentity(set, pod)
 	updateStorage(set, pod)
+
+	return setOCMPlacement(set, pInfo, pod, placementPolicy)
+}
+
+func setOCMPlacement(set *api.PetSet, pInfo controller.PodInfo, pod *v1.Pod, placementPolicy *api.PlacementPolicy) *v1.Pod {
+	if placementPolicy == nil || placementPolicy.Spec.OCM == nil || placementPolicy.Spec.OCM.ClusterSpec == nil {
+		return pod
+	}
+	podId := pInfo.PodIndex
+	clusterName := ""
+	replicaCount := 0
+	for i := 0; i < len(placementPolicy.Spec.OCM.ClusterSpec); i++ {
+		replicaCount += int(placementPolicy.Spec.OCM.ClusterSpec[i].Replicas)
+		if podId < replicaCount {
+			clusterName = placementPolicy.Spec.OCM.ClusterSpec[i].ClusterName
+			break
+		}
+	}
+	if pod.Annotations == nil {
+		pod.Annotations = make(map[string]string)
+	}
+	pod.Annotations["open-cluster-management.i/cluster-name"] = clusterName
+	set.Annotations[fmt.Sprintf("open-cluster-management.i/%v", pod.Name)] = clusterName
 	return pod
 }
 

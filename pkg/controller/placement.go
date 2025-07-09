@@ -61,6 +61,7 @@ func CalculateForPodPlacement(pInfo *PodInfo) (v1.PodSpec, error) {
 		return podSpec, err
 	}
 	podSpec = setSpreadConstraintsFromPlacement(podSpec, *pInfo)
+	podSpec = setSpreadConstraintsFromPlacement(podSpec, *pInfo)
 	return setNodeAffinityFromPlacement(podSpec, *pInfo)
 }
 
