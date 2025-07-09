@@ -28,13 +28,17 @@ import (
 	"kubeops.dev/petset/pkg/controller/petset"
 	webhooks "kubeops.dev/petset/pkg/webhooks/apps/v1"
 
+	"github.com/pkg/errors"
 	core "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
+	"kmodules.xyz/client-go/apiextensions"
 	manifestclient "open-cluster-management.io/api/client/work/clientset/versioned"
 	manifestinformers "open-cluster-management.io/api/client/work/informers/externalversions"
+	apiworkv1 "open-cluster-management.io/api/work/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
@@ -170,6 +174,25 @@ func (c *OperatorConfig) New(ctx context.Context) (manager.Manager, error) {
 		os.Exit(1)
 	}
 
+	if err = mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
+		err = apiextensions.NewReconciler(ctx, mgr).SetupWithManager(mgr)
+		if err != nil {
+			return errors.Wrap(err, "unable to create controller controller CustomResourceReconciler")
+		}
+
+		apiextensions.RegisterSetup(schema.GroupKind{
+			Group: apiworkv1.GroupName,
+			Kind:  "ManifestWork",
+		}, func(ctx context.Context, mgr manager.Manager) {
+			c.ManifestInformerFactory.Start(ctx.Done())
+		})
+
+		return nil
+	})); err != nil {
+		setupLog.Error(err, "unable to set default kubeBuilder client")
+		os.Exit(1)
+	}
+
 	if err = webhooks.SetupPetSetWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "PetSet")
 		os.Exit(1)
@@ -208,7 +231,7 @@ func (c *OperatorConfig) New(ctx context.Context) (manager.Manager, error) {
 
 	c.KubeInformerFactory.Start(ctx.Done())
 	c.InformerFactory.Start(ctx.Done())
-	c.ManifestInformerFactory.Start(ctx.Done())
+	// c.ManifestInformerFactory.Start(ctx.Done())
 
 	if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
 		psCtrl.KBClient = mgr.GetClient()

@@ -27,6 +27,7 @@ import (
 	"kubeops.dev/petset/pkg/features"
 
 	"github.com/spf13/pflag"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
@@ -44,6 +45,7 @@ func init() {
 	utilruntime.Must(clientsetscheme.AddToScheme(Scheme))
 	utilruntime.Must(apiworkv1.AddToScheme(Scheme))
 	utilruntime.Must(api.AddToScheme(Scheme))
+	utilruntime.Must(apiextensionsv1.AddToScheme(Scheme))
 }
 
 type OperatorOptions struct {
