@@ -759,7 +759,7 @@ func (ssc *defaultPetSetControl) newVersionedPetSetPod(currentSet, updateSet *ap
 		if currentSet.Spec.PodPlacementPolicy != nil {
 			placementPolicy, err = ssc.podControl.objectMgr.GetPlacementPolicy(currentSet.Spec.PodPlacementPolicy.Name)
 		}
-		podList, err := ssc.podControl.objectMgr.ListPods(currentSet.Namespace, labels.SelectorFromSet(currentSet.Spec.Template.Labels).String())
+		podList, err := ssc.podControl.objectMgr.ListPods(currentSet.Namespace, labels.SelectorFromSet(currentSet.Spec.Template.Labels).String(), currentSet)
 		if err != nil {
 			return nil, err
 		}
@@ -771,7 +771,7 @@ func (ssc *defaultPetSetControl) newVersionedPetSetPod(currentSet, updateSet *ap
 	if updateSet.Spec.PodPlacementPolicy != nil {
 		placementPolicy, err = ssc.podControl.objectMgr.GetPlacementPolicy(updateSet.Spec.PodPlacementPolicy.Name)
 	}
-	podList, err := ssc.podControl.objectMgr.ListPods(updateSet.Namespace, labels.SelectorFromSet(updateSet.Spec.Template.Labels).String())
+	podList, err := ssc.podControl.objectMgr.ListPods(updateSet.Namespace, labels.SelectorFromSet(updateSet.Spec.Template.Labels).String(), currentSet)
 	if err != nil {
 		return nil, err
 	}

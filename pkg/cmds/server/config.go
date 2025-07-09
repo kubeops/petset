@@ -203,6 +203,7 @@ func (c *OperatorConfig) New(ctx context.Context) (manager.Manager, error) {
 		c.ManifestInformerFactory.Work().V1().ManifestWorks(),
 		c.KubeClient,
 		c.Client,
+		c.manifestClient,
 	)
 
 	c.KubeInformerFactory.Start(ctx.Done())

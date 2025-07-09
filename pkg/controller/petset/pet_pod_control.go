@@ -18,13 +18,9 @@ package petset
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	manifestclient "open-cluster-management.io/api/client/work/clientset/versioned"
 	manifestlisters "open-cluster-management.io/api/client/work/listers/work/v1"
-	apiworkv1 "open-cluster-management.io/api/work/v1"
 	"strings"
 
 	api "kubeops.dev/petset/apis/apps/v1"
@@ -114,74 +110,6 @@ func (om *realStatefulPodControlObjectManager) CreatePod(ctx context.Context, po
 	return err
 }
 
-func (om *realStatefulPodControlObjectManager) CreatePodManifestWork(ctx context.Context, pod *v1.Pod, set *api.PetSet) error {
-	if set.Spec.PodPlacementPolicy == nil {
-		return fmt.Errorf("pod placement policy can't be nil for distributed petset")
-	}
-	// The namespace for the ManifestWork should be the name of the managed cluster.
-	namespace := pod.Annotations["open-cluster-management.io/cluster-name"]
-	if namespace == "" {
-		return fmt.Errorf("open-cluster-management.io/cluster-name annotation is empty")
-	}
-
-	podUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(pod)
-	if err != nil {
-		// In production, you should handle this error gracefully.
-		return fmt.Errorf("failed to convert pod to unstructured: %w", err)
-	}
-
-	// Create the ManifestWork object
-	mw := &apiworkv1.ManifestWork{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      pod.Name,
-			Namespace: namespace, // Namespace on the hub, which is the managed cluster's name
-		},
-		Spec: apiworkv1.ManifestWorkSpec{
-			Workload: apiworkv1.ManifestsTemplate{
-				Manifests: []apiworkv1.Manifest{
-					{
-						RawExtension: runtime.RawExtension{
-							Object: &unstructured.Unstructured{Object: podUnstructured},
-						},
-					},
-				},
-			},
-			// This section provides the feedback rules for the pod's status.
-			ManifestConfigs: []apiworkv1.ManifestConfigOption{
-				{
-					ResourceIdentifier: apiworkv1.ResourceIdentifier{
-						Group:     "",
-						Resource:  "pods",
-						Name:      pod.Name,
-						Namespace: pod.Namespace, // The namespace where the pod will be created on the managed cluster
-					},
-					FeedbackRules: []apiworkv1.FeedbackRule{
-						{
-							Type: apiworkv1.JSONPathsType,
-							JsonPaths: []apiworkv1.JsonPath{
-								{
-									Name: "PodPhase",
-									Path: ".status.phase",
-								},
-								{
-									Name: "PodIP",
-									Path: ".status.podIP",
-								},
-								{
-									Name: "ReadyCondition",
-									Path: ".status.conditions[?(@.type=='Ready')]",
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-	_, err = om.mClient.WorkV1().ManifestWorks(pod.Namespace).Create(ctx, mw, metav1.CreateOptions{})
-	return err
-}
-
 func (om *realStatefulPodControlObjectManager) GetPlacementPolicy(name string) (*api.PlacementPolicy, error) {
 	return om.placementLister.Get(name)
 }
@@ -195,94 +123,12 @@ func (om *realStatefulPodControlObjectManager) GetPod(namespace, podName string,
 	return om.podLister.Pods(namespace).Get(podName)
 }
 
-func (om *realStatefulPodControlObjectManager) GetPodFromManifestWork(set *api.PetSet, manifestWorkName string) (*v1.Pod, error) {
-	namespace := set.Annotations[fmt.Sprintf("open-cluster-management.io/%s", manifestWorkName)]
-	if namespace == "" {
-		return nil, fmt.Errorf("annotation for managed cluster namespace open-cluster-management.io/%s is empty", manifestWorkName)
-	}
-
-	mw, err := om.manifestLister.ManifestWorks(namespace).Get(manifestWorkName)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(mw.Spec.Workload.Manifests) == 0 {
-		return nil, fmt.Errorf("manifestwork %s has no manifests", manifestWorkName)
-	}
-
-	manifest := mw.Spec.Workload.Manifests[0]
-	pod := &v1.Pod{}
-
-	if err := json.Unmarshal(manifest.Raw, pod); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal manifest to pod: %w", err)
-	}
-
-	if len(mw.Status.ResourceStatus.Manifests) == 0 {
-		return pod, nil
-	}
-
-	feedback := mw.Status.ResourceStatus.Manifests[0].StatusFeedbacks
-	newStatus := v1.PodStatus{}
-
-	for _, value := range feedback.Values {
-		switch value.Name {
-		case "PodPhase":
-			if value.Value.String != nil {
-				newStatus.Phase = v1.PodPhase(*value.Value.String)
-			}
-		case "PodIP":
-			if value.Value.String != nil {
-				newStatus.PodIP = *value.Value.String
-			}
-		case "ReadyCondition":
-			if value.Value.JsonRaw != nil {
-				var readyCondition v1.PodCondition
-				if err := json.Unmarshal([]byte(*value.Value.JsonRaw), &readyCondition); err == nil {
-					newStatus.Conditions = append(newStatus.Conditions, readyCondition)
-				}
-			}
-		}
-	}
-	pod.Status = newStatus
-
-	return pod, nil
-}
-
 // UpdatePod checks if the PetSet is distributed and calls the appropriate update method.
 func (om *realStatefulPodControlObjectManager) UpdatePod(pod *v1.Pod, set *api.PetSet) error {
 	if set.Spec.Distributed {
 		return om.UpdatePodManifestWork(context.TODO(), pod)
 	}
 	_, err := om.client.CoreV1().Pods(pod.Namespace).Update(context.TODO(), pod, metav1.UpdateOptions{})
-	return err
-}
-
-// UpdatePodManifestWork handles updating a pod by updating its corresponding ManifestWork.
-func (om *realStatefulPodControlObjectManager) UpdatePodManifestWork(ctx context.Context, pod *v1.Pod) error {
-	namespace := pod.Annotations["open-cluster-management.io/cluster-name"]
-	if namespace == "" {
-		return fmt.Errorf("open-cluster-management.io/cluster-name annotation is empty for pod %s", pod.Name)
-	}
-
-	existingMW, err := om.mClient.WorkV1().ManifestWorks(namespace).Get(ctx, pod.Name, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get existing manifestwork %s in namespace %s: %w", pod.Name, namespace, err)
-	}
-
-	podUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(pod)
-	if err != nil {
-		return fmt.Errorf("failed to convert pod to unstructured: %w", err)
-	}
-
-	existingMW.Spec.Workload.Manifests = []apiworkv1.Manifest{
-		{
-			RawExtension: runtime.RawExtension{
-				Object: &unstructured.Unstructured{Object: podUnstructured},
-			},
-		},
-	}
-
-	_, err = om.mClient.WorkV1().ManifestWorks(namespace).Update(ctx, existingMW, metav1.UpdateOptions{})
 	return err
 }
 
@@ -294,122 +140,46 @@ func (om *realStatefulPodControlObjectManager) DeletePod(pod *v1.Pod, set *api.P
 	return om.client.CoreV1().Pods(pod.Namespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
 }
 
-// DeletePodManifestWork handles deleting a pod by deleting its corresponding ManifestWork.
-func (om *realStatefulPodControlObjectManager) DeletePodManifestWork(ctx context.Context, pod *v1.Pod) error {
-	namespace := pod.Annotations["open-cluster-management.io/cluster-name"]
-	if namespace == "" {
-		return fmt.Errorf("open-cluster-management.io/cluster-name annotation is empty for pod %s", pod.Name)
-	}
-
-	return om.mClient.WorkV1().ManifestWorks(namespace).Delete(ctx, pod.Name, metav1.DeleteOptions{})
-}
-
 // ListPods checks if the PetSet is distributed and calls the appropriate list method.
-func (om *realStatefulPodControlObjectManager) ListPods(ns string, set *api.PetSet) ([]*v1.Pod, error) {
-	// If the PetSet is distributed, list Pods by listing their corresponding ManifestWorks.
+func (om *realStatefulPodControlObjectManager) ListPods(ns, labels string, set *api.PetSet) (*v1.PodList, error) {
 	if set.Spec.Distributed {
-		pods, err := om.ListPodsManifestWork(set)
+		podList, err := om.ListPodsManifestWork(set)
 		if err != nil {
 			return nil, err
 		}
 		klog.Infoln("ListPods from manifestwork")
-		for _, pod := range pods {
+		for _, pod := range podList.Items {
 			klog.Infoln(pod.Name, pod.Namespace)
 		}
-		return pods, nil
+		return podList, nil
 	}
 
-	// For a standard PetSet, list Pods directly from the lister using its selector.
-	selector, err := metav1.LabelSelectorAsSelector(set.Spec.Selector)
-	if err != nil {
-		return nil, err
-	}
-	return om.podLister.Pods(ns).List(selector)
+	return om.client.CoreV1().Pods(ns).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: labels,
+	})
 }
 
-// ListPodsManifestWork lists all ManifestWorks matching the PetSet's selector and reconstructs
-// the Pod objects from them. It safely handles ManifestWorks containing multiple or non-Pod resources.
-func (om *realStatefulPodControlObjectManager) ListPodsManifestWork(set *api.PetSet) ([]*v1.Pod, error) {
-	klog.Infof("Listing ManifestWorks for distributed PetSet %s/%s using lister", set.Namespace, set.Name)
-	selector, err := metav1.LabelSelectorAsSelector(set.Spec.Selector)
-	if err != nil {
-		return nil, fmt.Errorf("could not convert PetSet selector to selector: %w", err)
-	}
-
-	mws, err := om.manifestLister.List(selector)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list manifestworks with selector %s using lister: %w", selector.String(), err)
-	}
-
-	var pods []*v1.Pod
-	for _, mw := range mws {
-		for i, manifest := range mw.Spec.Workload.Manifests {
-			unstructuredObj := &unstructured.Unstructured{}
-			if err := unstructuredObj.UnmarshalJSON(manifest.Raw); err != nil {
-				klog.Errorf("Failed to unmarshal manifest %d in ManifestWork %s/%s: %v", i, mw.Namespace, mw.Name, err)
-				continue
-			}
-
-			if unstructuredObj.GetKind() != "Pod" {
-				continue
-			}
-
-			pod := &v1.Pod{}
-			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj.Object, pod); err != nil {
-				klog.Errorf("Failed to convert unstructured object to Pod for manifest %d in ManifestWork %s/%s: %v", i, mw.Namespace, mw.Name, err)
-				continue
-			}
-
-			// Now, populate the pod's status from the same ManifestWork's status feedback.
-			// We find the matching status feedback by its index (ordinal).
-			for _, manifestStatus := range mw.Status.ResourceStatus.Manifests {
-				if int(manifestStatus.ResourceMeta.Ordinal) != i {
-					continue
-				}
-
-				feedback := manifestStatus.StatusFeedbacks
-				newStatus := v1.PodStatus{}
-
-				for _, value := range feedback.Values {
-					switch value.Name {
-					case "PodPhase":
-						if value.Value.String != nil {
-							newStatus.Phase = v1.PodPhase(*value.Value.String)
-						}
-					case "PodIP":
-						if value.Value.String != nil {
-							newStatus.PodIP = *value.Value.String
-						}
-					case "ReadyCondition":
-						if value.Value.JsonRaw != nil {
-							var readyCondition v1.PodCondition
-							if err := json.Unmarshal([]byte(*value.Value.JsonRaw), &readyCondition); err == nil {
-								newStatus.Conditions = append(newStatus.Conditions, readyCondition)
-							}
-						}
-					}
-				}
-				pod.Status = newStatus
-				break // Found the matching status, break from inner loop.
-			}
-
-			pods = append(pods, pod)
-		}
-	}
-
-	return pods, nil
-}
-
+// CreateClaim checks if the PetSet is distributed and calls the appropriate create method.
 func (om *realStatefulPodControlObjectManager) CreateClaim(claim *v1.PersistentVolumeClaim, set *api.PetSet) error {
+	if set.Spec.Distributed {
+		return om.CreateClaimManifestWork(set, claim)
+	}
 	_, err := om.client.CoreV1().PersistentVolumeClaims(claim.Namespace).Create(context.TODO(), claim, metav1.CreateOptions{})
 	return err
 }
 
 func (om *realStatefulPodControlObjectManager) GetClaim(namespace, claimName string, set *api.PetSet) (*v1.PersistentVolumeClaim, error) {
+	if set.Spec.Distributed {
+		return om.GetClaimFromManifestWork(set, claimName)
+	}
 	return om.claimLister.PersistentVolumeClaims(namespace).Get(claimName)
 }
 
+// UpdateClaim checks if the PetSet is distributed and calls the appropriate update method.
 func (om *realStatefulPodControlObjectManager) UpdateClaim(claim *v1.PersistentVolumeClaim, set *api.PetSet) error {
+	if set.Spec.Distributed {
+		return om.UpdateClaimManifestWork(set, claim)
+	}
 	_, err := om.client.CoreV1().PersistentVolumeClaims(claim.Namespace).Update(context.TODO(), claim, metav1.UpdateOptions{})
 	return err
 }

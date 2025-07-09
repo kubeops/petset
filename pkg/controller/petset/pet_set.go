@@ -43,6 +43,7 @@ import (
 	podutil "kubeops.dev/petset/pkg/api/v1/pod"
 	"kubeops.dev/petset/pkg/controller"
 	"kubeops.dev/petset/pkg/controller/history"
+	manifestclient "open-cluster-management.io/api/client/work/clientset/versioned"
 	manifestinformers "open-cluster-management.io/api/client/work/informers/externalversions/work/v1"
 	manifestlisters "open-cluster-management.io/api/client/work/listers/work/v1"
 	apiworkv1 "open-cluster-management.io/api/work/v1"
@@ -103,6 +104,7 @@ func NewPetSetController(
 	manifestInformer manifestinformers.ManifestWorkInformer,
 	kubeClient clientset.Interface,
 	apiClient versioned.Interface,
+	manifestClient manifestclient.Interface,
 ) *PetSetController {
 	logger := klog.FromContext(ctx)
 	eventBroadcaster := record.NewBroadcaster()
@@ -113,7 +115,9 @@ func NewPetSetController(
 		control: NewDefaultPetSetControl(
 			NewStatefulPodControl(
 				kubeClient,
+				manifestClient,
 				podInformer.Lister(),
+				manifestInformer.Lister(),
 				placementInformer.Lister(),
 				pvcInformer.Lister(),
 				recorder),
@@ -488,22 +492,22 @@ func (ssc *PetSetController) deleteManifestWork(logger klog.Logger, obj interfac
 //
 // NOTE: Returned Pods are pointers to objects from the cache.
 // If you need to modify one, you need to copy it first.
-func (ssc *PetSetController) getPodsFromManifestWorkForPetSet(ctx context.Context, set *api.PetSet, selector labels.Selector) ([]*v1.Pod, error) {
-	// List all pods to include the pods that don't match the selector anymore but
-	// has a ControllerRef pointing to this PetSet.
-	mws, err := ssc.manifestLister.ManifestWorks(set.Namespace).List(labels.Everything())
-	if err != nil {
-		return nil, err
-	}
-
-	filter := func(mw *apiworkv1.ManifestWork) bool {
-		// Only claim if it matches our PetSet name. Otherwise release/ignore.
-		return isManifestWorkMemberOfPetSet(set, mw)
-	}
-
-	cm := controller.NewPodControllerRefManager(ssc.podControl, set, selector, controllerKind, ssc.canAdoptFunc(ctx, set))
-	return cm.ClaimPods(ctx, pods, filter)
-}
+//func (ssc *PetSetController) getPodsFromManifestWorkForPetSet(ctx context.Context, set *api.PetSet, selector labels.Selector) ([]*v1.Pod, error) {
+//	// List all pods to include the pods that don't match the selector anymore but
+//	// has a ControllerRef pointing to this PetSet.
+//	mws, err := ssc.manifestLister.ManifestWorks(set.Namespace).List(labels.Everything())
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	filter := func(mw *apiworkv1.ManifestWork) bool {
+//		// Only claim if it matches our PetSet name. Otherwise release/ignore.
+//		return isManifestWorkMemberOfPetSet(set, mw)
+//	}
+//
+//	cm := controller.NewPodControllerRefManager(ssc.podControl, set, selector, controllerKind, ssc.canAdoptFunc(ctx, set))
+//	return cm.ClaimPods(ctx, pods, filter)
+//}
 
 // If any adoptions are attempted, we should first recheck for deletion with
 // an uncached quorum read sometime after listing Pods/ControllerRevisions (see #42639).

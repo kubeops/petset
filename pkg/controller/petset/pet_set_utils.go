@@ -683,3 +683,7 @@ func getPetSetMaxUnavailable(maxUnavailable *intstr.IntOrString, replicaCount in
 	}
 	return maxUnavailableNum, nil
 }
+
+func getOrdinalFromClaim(claimName string) string {
+	return string(claimName[len(claimName)-1])
+}
