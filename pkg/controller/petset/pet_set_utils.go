@@ -500,20 +500,19 @@ func newPetSetPod(set *api.PetSet, placementPolicy *api.PlacementPolicy, ordinal
 	pod.Name = getPodName(set, ordinal)
 	initIdentity(set, pod)
 	updateStorage(set, pod)
-
-	return setOCMPlacement(set, pInfo, pod, placementPolicy)
+	setOCMPlacement(set, pInfo.PodIndex, pod, placementPolicy)
+	return pod
 }
 
-func setOCMPlacement(set *api.PetSet, pInfo controller.PodInfo, pod *v1.Pod, placementPolicy *api.PlacementPolicy) *v1.Pod {
+func setOCMPlacement(set *api.PetSet, ordinal int, pod *v1.Pod, placementPolicy *api.PlacementPolicy) {
 	if placementPolicy == nil || placementPolicy.Spec.OCM == nil || placementPolicy.Spec.OCM.ClusterSpec == nil {
-		return pod
+		return
 	}
-	podId := pInfo.PodIndex
 	clusterName := ""
 	replicaCount := 0
 	for i := 0; i < len(placementPolicy.Spec.OCM.ClusterSpec); i++ {
 		replicaCount += int(placementPolicy.Spec.OCM.ClusterSpec[i].Replicas)
-		if podId < replicaCount {
+		if ordinal < replicaCount {
 			clusterName = placementPolicy.Spec.OCM.ClusterSpec[i].ClusterName
 			break
 		}
@@ -521,9 +520,34 @@ func setOCMPlacement(set *api.PetSet, pInfo controller.PodInfo, pod *v1.Pod, pla
 	if pod.Annotations == nil {
 		pod.Annotations = make(map[string]string)
 	}
-	pod.Annotations["open-cluster-management.i/cluster-name"] = clusterName
-	set.Annotations[fmt.Sprintf("open-cluster-management.i/%v", pod.Name)] = clusterName
-	return pod
+	pod.Annotations["open-cluster-management.io/cluster-name"] = clusterName
+	if set.Annotations == nil {
+		set.Annotations = make(map[string]string)
+	}
+	set.Annotations[fmt.Sprintf("open-cluster-management.io/%v", pod.GetName())] = clusterName
+}
+
+func setOCMPlacementForPVC(set *api.PetSet, ordinal int, pvc *v1.PersistentVolumeClaim, placementPolicy *api.PlacementPolicy) {
+	if placementPolicy == nil || placementPolicy.Spec.OCM == nil || placementPolicy.Spec.OCM.ClusterSpec == nil {
+		return
+	}
+	clusterName := ""
+	replicaCount := 0
+	for i := 0; i < len(placementPolicy.Spec.OCM.ClusterSpec); i++ {
+		replicaCount += int(placementPolicy.Spec.OCM.ClusterSpec[i].Replicas)
+		if ordinal < replicaCount {
+			clusterName = placementPolicy.Spec.OCM.ClusterSpec[i].ClusterName
+			break
+		}
+	}
+	if pvc.Annotations == nil {
+		pvc.Annotations = make(map[string]string)
+	}
+	pvc.Annotations["open-cluster-management.io/cluster-name"] = clusterName
+	if set.Annotations == nil {
+		set.Annotations = make(map[string]string)
+	}
+	set.Annotations[fmt.Sprintf("open-cluster-management.io/%v", pvc.GetName())] = clusterName
 }
 
 // getPatch returns a strategic merge patch that can be applied to restore a PetSet to a

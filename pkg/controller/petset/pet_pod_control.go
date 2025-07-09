@@ -19,6 +19,7 @@ package petset
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	api "kubeops.dev/petset/apis/apps/v1"
@@ -417,8 +418,15 @@ func (spc *StatefulPodControl) createPersistentVolumeClaims(set *api.PetSet, pod
 		pvc, err := spc.objectMgr.GetClaim(claim.Namespace, claim.Name, set)
 		switch {
 		case apierrors.IsNotFound(err):
-			err := spc.objectMgr.CreateClaim(&claim, set)
-			if err != nil {
+			placementPolicy, err := spc.objectMgr.GetPlacementPolicy(set.Spec.PodPlacementPolicy.Name)
+			if err != nil && !apierrors.IsNotFound(err) {
+				errs = append(errs, err)
+			}
+			ordinal, _ := strconv.Atoi(getOrdinalFromClaim(claim.Name))
+			setOCMPlacementForPVC(set, ordinal, &claim, placementPolicy)
+
+			err = spc.objectMgr.CreateClaim(&claim, set)
+			if err != nil && !apierrors.IsAlreadyExists(err) {
 				errs = append(errs, fmt.Errorf("failed to create PVC %s: %s", claim.Name, err))
 			}
 			if err == nil || !apierrors.IsAlreadyExists(err) {
