@@ -109,6 +109,7 @@ func (om *realStatefulPodControlObjectManager) CreatePod(ctx context.Context, po
 		return om.CreatePodManifestWork(ctx, pod, set)
 	}
 	_, err := om.client.CoreV1().Pods(pod.Namespace).Create(ctx, pod, metav1.CreateOptions{})
+	klog.Infoln("(((((((((((((((((((((((((((((((((((((((((((((It shouldn't be here)))))))))))))))))))))))))")
 	return err
 }
 
@@ -277,6 +278,10 @@ func (spc *StatefulPodControl) DeleteStatefulPod(set *api.PetSet, pod *v1.Pod) e
 	err := spc.objectMgr.DeletePod(pod, set)
 	spc.recordPodEvent("delete", set, pod, err)
 	return err
+}
+
+func (spc *StatefulPodControl) ListStatefulPods(ns, labels string, set *api.PetSet) (*v1.PodList, error) {
+	return spc.objectMgr.ListPods(ns, labels, set)
 }
 
 // ClaimsMatchRetentionPolicy returns false if the PVCs for pod are not consistent with set's PVC deletion policy.

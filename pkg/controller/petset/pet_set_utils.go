@@ -531,23 +531,15 @@ func setOCMPlacementForPVC(set *api.PetSet, ordinal int, pvc *v1.PersistentVolum
 	if placementPolicy == nil || placementPolicy.Spec.OCM == nil || placementPolicy.Spec.OCM.ClusterSpec == nil {
 		return
 	}
-	clusterName := ""
-	replicaCount := 0
-	for i := 0; i < len(placementPolicy.Spec.OCM.ClusterSpec); i++ {
-		replicaCount += int(placementPolicy.Spec.OCM.ClusterSpec[i].Replicas)
-		if ordinal < replicaCount {
-			clusterName = placementPolicy.Spec.OCM.ClusterSpec[i].ClusterName
-			break
-		}
-	}
+	clusterName := getOcmClusterName(placementPolicy, ordinal)
 	if pvc.Annotations == nil {
 		pvc.Annotations = make(map[string]string)
 	}
 	pvc.Annotations["open-cluster-management.io/cluster-name"] = clusterName
-	if set.Annotations == nil {
-		set.Annotations = make(map[string]string)
-	}
-	set.Annotations[fmt.Sprintf("open-cluster-management.io/%v", pvc.GetName())] = clusterName
+	//if set.Annotations == nil {
+	//	set.Annotations = make(map[string]string)
+	//}
+	//set.Annotations[fmt.Sprintf("open-cluster-management.io/%v", pvc.GetName())] = clusterName
 }
 
 // getPatch returns a strategic merge patch that can be applied to restore a PetSet to a

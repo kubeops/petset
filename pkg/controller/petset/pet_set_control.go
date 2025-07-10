@@ -421,6 +421,7 @@ func (ssc *defaultPetSetControl) processReplica(
 		replicas[i] = vp
 
 	}
+	klog.Infoln("**********************ISSSSSSSSSSSSSSSSSSSS CRE", isCreated(replicas[i]), replicas[i].Status)
 	// If we find a Pod that has not been created we create the Pod
 	if !isCreated(replicas[i]) {
 		if features.DefaultFeatureGate.Enabled(features.PetSetAutoDeletePVC) {
@@ -432,8 +433,11 @@ func (ssc *defaultPetSetControl) processReplica(
 			}
 		}
 		if err := ssc.podControl.CreateStatefulPod(ctx, set, replicas[i]); err != nil {
+			klog.Infoln("annotations 3", set.Annotations)
 			return true, err
 		}
+		klog.Infoln("annotations 4", set.Annotations)
+
 		if monotonic {
 			// if the set does not allow bursting, return immediately
 			return true, nil

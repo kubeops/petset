@@ -350,6 +350,21 @@ func (ssc *PetSetController) deletePod(logger klog.Logger, obj interface{}) {
 func (ssc *PetSetController) getPodsForPetSet(ctx context.Context, set *api.PetSet, selector labels.Selector) ([]*v1.Pod, error) {
 	// List all pods to include the pods that don't match the selector anymore but
 	// has a ControllerRef pointing to this PetSet.
+
+	// TODO: This is temp
+
+	if set.Spec.Distributed {
+		podLists, err := ListPodsManifestWork(ssc.manifestLister, set)
+		if err != nil {
+			return nil, err
+		}
+		pods := []*v1.Pod{}
+		for _, pod := range podLists.Items {
+			pods = append(pods, &pod)
+		}
+		return pods, nil
+	}
+
 	pods, err := ssc.podLister.Pods(set.Namespace).List(labels.Everything())
 	if err != nil {
 		return nil, err
@@ -367,8 +382,9 @@ func (ssc *PetSetController) getPodsForPetSet(ctx context.Context, set *api.PetS
 // addManifest adds the petset for the manifestwork to the sync queue
 func (ssc *PetSetController) addManifestWork(logger klog.Logger, obj interface{}) {
 	mw := obj.(*apiworkv1.ManifestWork)
-
+	klog.Infoln("adding manifest work in the queue", mw.Name)
 	if mw.DeletionTimestamp != nil {
+		klog.Infoln("need to delete manifestwork", mw.Name)
 		// on a restart of the controller manager, it's possible a new pod shows up in a state that
 		// is already pending deletion. Prevent the pod from being a creation observation.
 		ssc.deleteManifestWork(logger, mw)
@@ -400,6 +416,7 @@ func (ssc *PetSetController) addManifestWork(logger klog.Logger, obj interface{}
 
 // updateManifestWork adds the petset for the current and ManifestWork pods to the sync queue.
 func (ssc *PetSetController) updateManifestWork(logger klog.Logger, old, cur interface{}) {
+	klog.Infoln("updating manifest work in the queue", old.(*apiworkv1.ManifestWork).Name)
 	curMW := cur.(*apiworkv1.ManifestWork)
 	oldMW := old.(*apiworkv1.ManifestWork)
 	if curMW.ResourceVersion == oldMW.ResourceVersion {
@@ -458,7 +475,7 @@ func (ssc *PetSetController) updateManifestWork(logger klog.Logger, old, cur int
 // deleteManifestWork enqueues the petset for the ManifestWork accounting for deletion tombstones.
 func (ssc *PetSetController) deleteManifestWork(logger klog.Logger, obj interface{}) {
 	mw, ok := obj.(*apiworkv1.ManifestWork)
-
+	klog.Infoln("deleting manifest work in the queue", mw.Name)
 	// When a delete is dropped, the relist will notice a pod in the store not
 	// in the list, leading to the insertion of a tombstone object which contains
 	// the deleted key/value. Note that this value might be stale.
