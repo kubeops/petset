@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"gomodules.xyz/oneliners"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,9 +32,10 @@ import (
 	manifestlisters "open-cluster-management.io/api/client/work/listers/work/v1"
 	apiworkv1 "open-cluster-management.io/api/work/v1"
 	"strconv"
+	"time"
 )
 
-func (om *realStatefulPodControlObjectManager) CreatePodManifestWork(ctx context.Context, pod *v1.Pod, set *api.PetSet) error {
+func (om *RealRealStatefulPodControlObjectManager) CreatePodManifestWork(ctx context.Context, pod *v1.Pod, set *api.PetSet) error {
 	if set.Spec.PodPlacementPolicy == nil {
 		return fmt.Errorf("pod placement policy can't be nil for distributed petset")
 	}
@@ -51,14 +53,24 @@ func (om *realStatefulPodControlObjectManager) CreatePodManifestWork(ctx context
 		// In production, you should handle this error gracefully.
 		return fmt.Errorf("failed to convert pod to unstructured: %w", err)
 	}
+	klog.Infoln("****************************")
+	oneliners.PrettyJson(pod.OwnerReferences)
+	klog.Infoln("****************************")
+	or := pod.OwnerReferences[0].DeepCopy()
 
 	mw := &apiworkv1.ManifestWork{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      pod.Name,
-			Namespace: namespace,
-			Labels:    pod.Labels,
-			//Annotations:     pod.Annotations,
-			//OwnerReferences: pod.OwnerReferences,
+			Name:        pod.Name,
+			Namespace:   namespace,
+			Labels:      pod.Labels,
+			Annotations: pod.Annotations,
+			OwnerReferences: []metav1.OwnerReference{
+				*or,
+			},
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ManifestWork",
+			APIVersion: "work.open-cluster-management.io/v1",
 		},
 		Spec: apiworkv1.ManifestWorkSpec{
 			Workload: apiworkv1.ManifestsTemplate{
@@ -102,13 +114,21 @@ func (om *realStatefulPodControlObjectManager) CreatePodManifestWork(ctx context
 			},
 		},
 	}
+	//_, err = cu.CreateOrPatch(ctx, om.kbClient, mw, func(obj client.Object, createOp bool) client.Object {
+	//	in := obj.(*apiworkv1.ManifestWork)
+	//	in.Spec = mw.Spec
+	//	in.ObjectMeta = mw.ObjectMeta
+	//	in.TypeMeta = mw.TypeMeta
+	//	return in
+	//})
+	// err = om.kbClient.Create(ctx, mw)
 	_, err = om.mClient.WorkV1().ManifestWorks(namespace).Create(ctx, mw, metav1.CreateOptions{})
-	klog.Infoln("Create ManifestWork err:", err)
-	//time.Sleep(time.Second * 5)
+	klog.Infoln("Create xManifestWork err:", err)
+	time.Sleep(time.Second * 15)
 	return err
 }
 
-func (om *realStatefulPodControlObjectManager) GetPodFromManifestWork(set *api.PetSet, manifestWorkName string) (*v1.Pod, error) {
+func (om *RealRealStatefulPodControlObjectManager) GetPodFromManifestWork(set *api.PetSet, manifestWorkName string) (*v1.Pod, error) {
 	ordinal, _ := strconv.Atoi(getOrdinalFromClaim(manifestWorkName))
 	namespace, err := om.getOcmClusterName(set.Spec.PodPlacementPolicy.Name, ordinal)
 	klog.Infof("GetPodFromManifestWork namespace:%s err:%v", namespace, err)
@@ -166,7 +186,7 @@ func (om *realStatefulPodControlObjectManager) GetPodFromManifestWork(set *api.P
 }
 
 // UpdatePodManifestWork handles updating a pod by updating its corresponding ManifestWork.
-func (om *realStatefulPodControlObjectManager) UpdatePodManifestWork(ctx context.Context, pod *v1.Pod) error {
+func (om *RealRealStatefulPodControlObjectManager) UpdatePodManifestWork(ctx context.Context, pod *v1.Pod) error {
 	namespace := pod.Annotations["open-cluster-management.io/cluster-name"]
 	if namespace == "" {
 		return fmt.Errorf("open-cluster-management.io/cluster-name annotation is empty for pod %s", pod.Name)
@@ -197,7 +217,7 @@ func (om *realStatefulPodControlObjectManager) UpdatePodManifestWork(ctx context
 }
 
 // DeletePodManifestWork handles deleting a pod by deleting its corresponding ManifestWork.
-func (om *realStatefulPodControlObjectManager) DeletePodManifestWork(ctx context.Context, pod *v1.Pod) error {
+func (om *RealRealStatefulPodControlObjectManager) DeletePodManifestWork(ctx context.Context, pod *v1.Pod) error {
 	klog.Infoln("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^YOu shouldn't be here")
 	namespace := pod.Annotations["open-cluster-management.io/cluster-name"]
 	if namespace == "" {
@@ -209,7 +229,7 @@ func (om *realStatefulPodControlObjectManager) DeletePodManifestWork(ctx context
 
 // ListPodsManifestWork lists all ManifestWorks matching the PetSet's selector and reconstructs
 // the Pod objects from them. It safely handles ManifestWorks containing multiple or non-Pod resources.
-func (om *realStatefulPodControlObjectManager) ListPodsManifestWork(set *api.PetSet) (*v1.PodList, error) {
+func (om *RealRealStatefulPodControlObjectManager) ListPodsManifestWork(set *api.PetSet) (*v1.PodList, error) {
 	klog.Infof("Listing ManifestWorks for distributed PetSet %s/%s using lister", set.Namespace, set.Name)
 	selector, err := metav1.LabelSelectorAsSelector(set.Spec.Selector)
 	if err != nil {
@@ -288,7 +308,7 @@ func (om *realStatefulPodControlObjectManager) ListPodsManifestWork(set *api.Pet
 }
 
 // CreateClaimManifestWork creates a ManifestWork on the hub to deploy a PersistentVolumeClaim to a managed cluster.
-func (om *realStatefulPodControlObjectManager) CreateClaimManifestWork(set *api.PetSet, claim *v1.PersistentVolumeClaim) error {
+func (om *RealRealStatefulPodControlObjectManager) CreateClaimManifestWork(set *api.PetSet, claim *v1.PersistentVolumeClaim) error {
 	namespace := claim.Annotations["open-cluster-management.io/cluster-name"]
 	if namespace == "" {
 		return fmt.Errorf("open-cluster-management.io/cluster-name annotation is empty for pvc %s/%s", claim.Namespace, claim.Name)
@@ -301,13 +321,17 @@ func (om *realStatefulPodControlObjectManager) CreateClaimManifestWork(set *api.
 		return fmt.Errorf("failed to convert claim to unstructured: %w", err)
 	}
 
+	mwMeta := metav1.ObjectMeta{
+		Name:      claim.Name,
+		Namespace: namespace,
+		Labels:    claim.Labels,
+	}
+
 	mw := &apiworkv1.ManifestWork{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      claim.Name,
-			Namespace: namespace,
-			Labels:    claim.Labels,
-			//Annotations:     claim.Annotations,
-			//OwnerReferences: claim.OwnerReferences,
+		ObjectMeta: mwMeta,
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ManifestWork",
+			APIVersion: "work.open-cluster-management.io/v1",
 		},
 		Spec: apiworkv1.ManifestWorkSpec{
 			Workload: apiworkv1.ManifestsTemplate{
@@ -327,13 +351,10 @@ func (om *realStatefulPodControlObjectManager) CreateClaimManifestWork(set *api.
 }
 
 // GetClaimFromManifestWork retrieves a PersistentVolumeClaim by getting its corresponding ManifestWork from the lister.
-func (om *realStatefulPodControlObjectManager) GetClaimFromManifestWork(set *api.PetSet, claimName string) (*v1.PersistentVolumeClaim, error) {
+func (om *RealRealStatefulPodControlObjectManager) GetClaimFromManifestWork(set *api.PetSet, claimName string) (*v1.PersistentVolumeClaim, error) {
 	klog.Infof("trying to get claim from manifestwork %s/%s----------------------------", set.Namespace, set.Name)
 	ordinal, _ := strconv.Atoi(getOrdinalFromClaim(claimName))
 	namespace, err := om.getOcmClusterName(set.Spec.PodPlacementPolicy.Name, ordinal)
-	klog.Infof("***********************************###############################################")
-	klog.Infoln("namespace claim: ", namespace)
-	klog.Infof("***********************************###############################################")
 	if namespace == "" {
 		klog.Errorf("failed to get ocm clustername for %v, err : %v", claimName, err)
 		pvcResource := schema.GroupResource{Group: "", Resource: "persistentvolumeclaims"}
@@ -361,7 +382,7 @@ func (om *realStatefulPodControlObjectManager) GetClaimFromManifestWork(set *api
 }
 
 // UpdateClaimManifestWork handles updating a PVC by updating its corresponding ManifestWork.
-func (om *realStatefulPodControlObjectManager) UpdateClaimManifestWork(set *api.PetSet, claim *v1.PersistentVolumeClaim) error {
+func (om *RealRealStatefulPodControlObjectManager) UpdateClaimManifestWork(set *api.PetSet, claim *v1.PersistentVolumeClaim) error {
 	namespace := claim.Annotations["open-cluster-management.io/cluster-name"]
 	if namespace == "" {
 		return fmt.Errorf("open-cluster-management.io/cluster-name annotation is empty for pvc %s/%s", claim.Namespace, claim.Name)
@@ -390,7 +411,7 @@ func (om *realStatefulPodControlObjectManager) UpdateClaimManifestWork(set *api.
 	return err
 }
 
-func (om *realStatefulPodControlObjectManager) getOcmClusterName(ppName string, ordinal int) (string, error) {
+func (om *RealRealStatefulPodControlObjectManager) getOcmClusterName(ppName string, ordinal int) (string, error) {
 	pp, err := om.GetPlacementPolicy(ppName)
 	if err != nil {
 		return "", err

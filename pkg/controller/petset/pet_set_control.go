@@ -421,7 +421,6 @@ func (ssc *defaultPetSetControl) processReplica(
 		replicas[i] = vp
 
 	}
-	klog.Infoln("**********************ISSSSSSSSSSSSSSSSSSSS CRE", isCreated(replicas[i]), replicas[i].Status)
 	// If we find a Pod that has not been created we create the Pod
 	if !isCreated(replicas[i]) {
 		if features.DefaultFeatureGate.Enabled(features.PetSetAutoDeletePVC) {
@@ -761,9 +760,9 @@ func (ssc *defaultPetSetControl) newVersionedPetSetPod(currentSet, updateSet *ap
 		(currentSet.Spec.UpdateStrategy.RollingUpdate == nil && ordinal < (getStartOrdinal(currentSet)+int(currentSet.Status.CurrentReplicas))) ||
 		(currentSet.Spec.UpdateStrategy.RollingUpdate != nil && ordinal < (getStartOrdinal(currentSet)+int(*currentSet.Spec.UpdateStrategy.RollingUpdate.Partition))) {
 		if currentSet.Spec.PodPlacementPolicy != nil {
-			placementPolicy, err = ssc.podControl.objectMgr.GetPlacementPolicy(currentSet.Spec.PodPlacementPolicy.Name)
+			placementPolicy, err = ssc.podControl.ObjectMgr.GetPlacementPolicy(currentSet.Spec.PodPlacementPolicy.Name)
 		}
-		podList, err := ssc.podControl.objectMgr.ListPods(currentSet.Namespace, labels.SelectorFromSet(currentSet.Spec.Template.Labels).String(), currentSet)
+		podList, err := ssc.podControl.ObjectMgr.ListPods(currentSet.Namespace, labels.SelectorFromSet(currentSet.Spec.Template.Labels).String(), currentSet)
 		if err != nil {
 			return nil, err
 		}
@@ -773,9 +772,9 @@ func (ssc *defaultPetSetControl) newVersionedPetSetPod(currentSet, updateSet *ap
 		return pod, err
 	}
 	if updateSet.Spec.PodPlacementPolicy != nil {
-		placementPolicy, err = ssc.podControl.objectMgr.GetPlacementPolicy(updateSet.Spec.PodPlacementPolicy.Name)
+		placementPolicy, err = ssc.podControl.ObjectMgr.GetPlacementPolicy(updateSet.Spec.PodPlacementPolicy.Name)
 	}
-	podList, err := ssc.podControl.objectMgr.ListPods(updateSet.Namespace, labels.SelectorFromSet(updateSet.Spec.Template.Labels).String(), currentSet)
+	podList, err := ssc.podControl.ObjectMgr.ListPods(updateSet.Namespace, labels.SelectorFromSet(updateSet.Spec.Template.Labels).String(), currentSet)
 	if err != nil {
 		return nil, err
 	}

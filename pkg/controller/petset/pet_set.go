@@ -107,22 +107,25 @@ func NewPetSetController(
 	kubeClient clientset.Interface,
 	apiClient versioned.Interface,
 	manifestClient manifestclient.Interface,
-) *PetSetController {
+) (*PetSetController, *StatefulPodControl) {
 	logger := klog.FromContext(ctx)
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "petset-controller"})
+
+	npd := NewStatefulPodControl(
+		kubeClient,
+		manifestClient,
+		podInformer.Lister(),
+		manifestInformer.Lister(),
+		placementInformer.Lister(),
+		pvcInformer.Lister(),
+		recorder)
+
 	ssc := &PetSetController{
 		client:    kubeClient,
 		apiClient: apiClient,
 		control: NewDefaultPetSetControl(
-			NewStatefulPodControl(
-				kubeClient,
-				manifestClient,
-				podInformer.Lister(),
-				manifestInformer.Lister(),
-				placementInformer.Lister(),
-				pvcInformer.Lister(),
-				recorder),
+			npd,
 			NewRealStatefulSetStatusUpdater(apiClient, setInformer.Lister()),
 			history.NewHistory(kubeClient, revInformer.Lister()),
 			recorder,
@@ -190,7 +193,7 @@ func NewPetSetController(
 	ssc.setListerSynced = setInformer.Informer().HasSynced
 
 	// TODO: Watch volumes
-	return ssc
+	return ssc, npd
 }
 
 // Run runs the petset controller.
@@ -354,6 +357,8 @@ func (ssc *PetSetController) getPodsForPetSet(ctx context.Context, set *api.PetS
 	// TODO: This is temp
 
 	if set.Spec.Distributed {
+		// TODO: Saurov: claim the pods matching selector, remove owner ref(if matches) if not matching selector
+
 		podLists, err := ListPodsManifestWork(ssc.manifestLister, set)
 		if err != nil {
 			return nil, err

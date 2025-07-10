@@ -216,7 +216,7 @@ func (c *OperatorConfig) New(ctx context.Context) (manager.Manager, error) {
 		os.Exit(1)
 	}
 
-	psCtrl := petset.NewPetSetController(
+	psCtrl, npd := petset.NewPetSetController(
 		ctx,
 		c.KubeInformerFactory.Core().V1().Pods(),
 		c.InformerFactory.Apps().V1().PetSets(),
@@ -235,6 +235,7 @@ func (c *OperatorConfig) New(ctx context.Context) (manager.Manager, error) {
 
 	if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
 		psCtrl.KBClient = mgr.GetClient()
+		npd.ObjectMgr.SetKBClient(mgr.GetClient())
 		psCtrl.Run(ctx, c.NumThreads)
 		return nil
 	})); err != nil {

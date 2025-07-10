@@ -2713,7 +2713,7 @@ package petset
 //	return om.podsLister.Pods(set.Namespace).List(selector)
 //}
 //
-//var _ StatefulPodControlObjectManager = &fakeObjectManager{}
+//var _ RealStatefulPodControlObjectManager = &fakeObjectManager{}
 //
 //type fakeStatefulSetStatusUpdater struct {
 //	setsLister          apilisters.PetSetLister
