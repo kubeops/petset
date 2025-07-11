@@ -28,6 +28,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
+	core_util "kmodules.xyz/client-go/core/v1"
+
 	api "kubeops.dev/petset/apis/apps/v1"
 	manifestlisters "open-cluster-management.io/api/client/work/listers/work/v1"
 	apiworkv1 "open-cluster-management.io/api/work/v1"
@@ -56,18 +58,17 @@ func (om *RealRealStatefulPodControlObjectManager) CreatePodManifestWork(ctx con
 	klog.Infoln("****************************")
 	oneliners.PrettyJson(pod.OwnerReferences)
 	klog.Infoln("****************************")
-	or := pod.OwnerReferences[0].DeepCopy()
+
+	mwMeta := metav1.ObjectMeta{
+		Name:      pod.Name,
+		Namespace: namespace,
+		Labels:    pod.Labels,
+	}
+	owner := metav1.NewControllerRef(set, api.SchemeGroupVersion.WithKind(api.ResourceKindPetSet))
+	core_util.EnsureOwnerReference(&mwMeta, owner)
 
 	mw := &apiworkv1.ManifestWork{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        pod.Name,
-			Namespace:   namespace,
-			Labels:      pod.Labels,
-			Annotations: pod.Annotations,
-			OwnerReferences: []metav1.OwnerReference{
-				*or,
-			},
-		},
+		ObjectMeta: mwMeta,
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ManifestWork",
 			APIVersion: "work.open-cluster-management.io/v1",
@@ -124,7 +125,7 @@ func (om *RealRealStatefulPodControlObjectManager) CreatePodManifestWork(ctx con
 	// err = om.kbClient.Create(ctx, mw)
 	_, err = om.mClient.WorkV1().ManifestWorks(namespace).Create(ctx, mw, metav1.CreateOptions{})
 	klog.Infoln("Create xManifestWork err:", err)
-	time.Sleep(time.Second * 15)
+	time.Sleep(time.Second * 30)
 	return err
 }
 
