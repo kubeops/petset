@@ -421,7 +421,6 @@ func (ssc *defaultPetSetControl) processReplica(
 		replicas[i] = vp
 
 	}
-	klog.Infoln("**********************ISSSSSSSSSSSSSSSSSSSS CRE", isCreated(replicas[i]), replicas[i].Status)
 	// If we find a Pod that has not been created we create the Pod
 	if !isCreated(replicas[i]) {
 		if features.DefaultFeatureGate.Enabled(features.PetSetAutoDeletePVC) {

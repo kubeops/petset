@@ -24,6 +24,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/klog/v2"
 	apiworkv1 "open-cluster-management.io/api/work/v1"
 )
 
@@ -80,35 +82,26 @@ func (s *petSetLister) GetPodPetSets(pod *v1.Pod) ([]*api.PetSet, error) {
 	return psList, nil
 }
 
-// GetPodPetSets returns a list of PetSets that potentially match a pod.
-// Only the one specified in the Pod's ControllerRef will actually manage it.
-// Returns an error only if no matching PetSets are found.
+// GetManifestWorksPetSets returns a list of PetSets that potentially match a manifestwork.
+// It lists PetSets across all namespaces and matches them based on labels.
 func (s *petSetLister) GetManifestWorksPetSets(mw *apiworkv1.ManifestWork) ([]*api.PetSet, error) {
-	var selector labels.Selector
-	var ps *api.PetSet
-
 	if len(mw.Labels) == 0 {
-		return nil, fmt.Errorf("no PetSets found for manifeswork %v because it has no labels", mw.Name)
+		return nil, fmt.Errorf("no PetSets found for manifestwork %s because it has no labels", mw.Name)
 	}
 
-	list, err := s.PetSets(mw.Namespace).List(labels.Everything())
+	list, err := s.List(labels.Everything())
 	if err != nil {
 		return nil, err
 	}
 
 	var psList []*api.PetSet
-	for i := range list {
-		ps = list[i]
-		if ps.Namespace != mw.Namespace {
-			continue
-		}
-		selector, err = metav1.LabelSelectorAsSelector(ps.Spec.Selector)
+	for _, ps := range list {
+		selector, err := metav1.LabelSelectorAsSelector(ps.Spec.Selector)
 		if err != nil {
-			// This object has an invalid selector, it does not match the pod
+			klog.Warningf("PetSet %s/%s has an invalid selector: %v", ps.Namespace, ps.Name, err)
 			continue
 		}
 
-		// If a PetSet with a nil or empty selector creeps in, it should match nothing, not everything.
 		if selector.Empty() || !selector.Matches(labels.Set(mw.Labels)) {
 			continue
 		}
@@ -116,7 +109,18 @@ func (s *petSetLister) GetManifestWorksPetSets(mw *apiworkv1.ManifestWork) ([]*a
 	}
 
 	if len(psList) == 0 {
-		return nil, fmt.Errorf("could not find PetSet for manifeswork %s in namespace %s with labels: %v", mw.Name, mw.Namespace, mw.Labels)
+		return nil, fmt.Errorf("could not find any PetSet for manifestwork %s in any namespace with labels: %v", mw.Name, mw.Labels)
+	}
+
+	if len(psList) > 1 {
+		setNames := []string{}
+		for _, s := range psList {
+			setNames = append(setNames, s.Name)
+		}
+		utilruntime.HandleError(
+			fmt.Errorf(
+				"user error: more than one PetSet is selecting manifestwork with labels: %+v. Sets: %v",
+				mw.Labels, setNames))
 	}
 
 	return psList, nil

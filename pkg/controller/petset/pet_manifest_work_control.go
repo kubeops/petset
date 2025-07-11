@@ -20,6 +20,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+
+	api "kubeops.dev/petset/apis/apps/v1"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,10 +31,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
-	api "kubeops.dev/petset/apis/apps/v1"
 	manifestlisters "open-cluster-management.io/api/client/work/listers/work/v1"
 	apiworkv1 "open-cluster-management.io/api/work/v1"
-	"strconv"
 )
 
 func (om *realStatefulPodControlObjectManager) CreatePodManifestWork(ctx context.Context, pod *v1.Pod, set *api.PetSet) error {
@@ -57,8 +59,8 @@ func (om *realStatefulPodControlObjectManager) CreatePodManifestWork(ctx context
 			Name:      pod.Name,
 			Namespace: namespace,
 			Labels:    pod.Labels,
-			//Annotations:     pod.Annotations,
-			//OwnerReferences: pod.OwnerReferences,
+			// Annotations:     pod.Annotations,
+			// OwnerReferences: pod.OwnerReferences,
 		},
 		Spec: apiworkv1.ManifestWorkSpec{
 			Workload: apiworkv1.ManifestsTemplate{
@@ -104,7 +106,7 @@ func (om *realStatefulPodControlObjectManager) CreatePodManifestWork(ctx context
 	}
 	_, err = om.mClient.WorkV1().ManifestWorks(namespace).Create(ctx, mw, metav1.CreateOptions{})
 	klog.Infoln("Create ManifestWork err:", err)
-	//time.Sleep(time.Second * 5)
+	// time.Sleep(time.Second * 5)
 	return err
 }
 
@@ -139,7 +141,7 @@ func (om *realStatefulPodControlObjectManager) GetPodFromManifestWork(set *api.P
 
 	feedback := mw.Status.ResourceStatus.Manifests[0].StatusFeedbacks
 	newStatus := v1.PodStatus{}
-	newStatus.Phase = v1.PodPending // Setting this so that controller do not try to create the pod again
+	// newStatus.Phase = v1.PodPending // Setting this so that controller do not try to create the pod again
 	for _, value := range feedback.Values {
 		switch value.Name {
 		case "PodPhase":
@@ -247,7 +249,7 @@ func (om *realStatefulPodControlObjectManager) ListPodsManifestWork(set *api.Pet
 
 				feedback := manifestStatus.StatusFeedbacks
 				newStatus := v1.PodStatus{}
-				newStatus.Phase = v1.PodPending // same reason mentioned above
+				// newStatus.Phase = v1.PodPending // same reason mentioned above
 
 				for _, value := range feedback.Values {
 					switch value.Name {
@@ -306,8 +308,8 @@ func (om *realStatefulPodControlObjectManager) CreateClaimManifestWork(set *api.
 			Name:      claim.Name,
 			Namespace: namespace,
 			Labels:    claim.Labels,
-			//Annotations:     claim.Annotations,
-			//OwnerReferences: claim.OwnerReferences,
+			// Annotations:     claim.Annotations,
+			// OwnerReferences: claim.OwnerReferences,
 		},
 		Spec: apiworkv1.ManifestWorkSpec{
 			Workload: apiworkv1.ManifestsTemplate{
@@ -443,7 +445,7 @@ func ListPodsManifestWork(manifestLister manifestlisters.ManifestWorkLister, set
 
 				feedback := manifestStatus.StatusFeedbacks
 				newStatus := v1.PodStatus{}
-				newStatus.Phase = v1.PodPending // same reason mentioned above
+				// newStatus.Phase = v1.PodPending // same reason mentioned above
 
 				for _, value := range feedback.Values {
 					switch value.Name {
