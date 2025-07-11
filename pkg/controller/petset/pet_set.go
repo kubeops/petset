@@ -47,6 +47,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+	core_util "kmodules.xyz/client-go/core/v1"
 	manifestclient "open-cluster-management.io/api/client/work/clientset/versioned"
 	manifestinformers "open-cluster-management.io/api/client/work/informers/externalversions/work/v1"
 	manifestlisters "open-cluster-management.io/api/client/work/listers/work/v1"
@@ -65,6 +66,8 @@ type PetSetController struct {
 	client clientset.Interface
 	// client interface
 	apiClient versioned.Interface
+	// manifestwork client
+	manifestClient manifestclient.Interface
 	// control returns an interface capable of syncing a stateful set.
 	// Abstracted out for testing.
 	control PetSetControlInterface
@@ -112,8 +115,9 @@ func NewPetSetController(
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "petset-controller"})
 	ssc := &PetSetController{
-		client:    kubeClient,
-		apiClient: apiClient,
+		client:         kubeClient,
+		apiClient:      apiClient,
+		manifestClient: manifestClient,
 		control: NewDefaultPetSetControl(
 			NewStatefulPodControl(
 				kubeClient,
@@ -703,6 +707,17 @@ func (ssc *PetSetController) sync(ctx context.Context, key string) error {
 		return err
 	}
 
+	if set.Spec.Distributed && set.DeletionTimestamp != nil {
+		return ssc.handleFinalizerRemove(set)
+	}
+
+	if set.DeletionTimestamp == nil && set.Spec.Distributed && !core_util.HasFinalizer(set.ObjectMeta, api.GroupName) {
+		setCopy := set.DeepCopy()
+		setCopy.ObjectMeta = core_util.AddFinalizer(setCopy.ObjectMeta, api.GroupName)
+		_, err = ssc.apiClient.AppsV1().PetSets(namespace).Update(ctx, setCopy, metav1.UpdateOptions{})
+		return err
+	}
+
 	selector, err := metav1.LabelSelectorAsSelector(set.Spec.Selector)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("error converting PetSet %v selector: %v", key, err))
@@ -742,4 +757,26 @@ func (ssc *PetSetController) syncPetSet(ctx context.Context, set *api.PetSet, po
 	}
 
 	return nil
+}
+
+func (ssc *PetSetController) handleFinalizerRemove(set *api.PetSet) error {
+	// TODO: cc@Arnob vai. should Delete all the Manifestworks
+	selector, err := metav1.LabelSelectorAsSelector(set.Spec.Selector)
+	if err != nil {
+		return err
+	}
+	mws, err := ssc.manifestLister.List(selector)
+	if err != nil {
+		return err
+	}
+	for _, mw := range mws {
+		err := ssc.manifestClient.WorkV1().ManifestWorks(mw.Namespace).Delete(context.TODO(), mw.Name, metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	}
+	setCopy := set.DeepCopy()
+	setCopy.ObjectMeta = core_util.RemoveFinalizer(setCopy.ObjectMeta, api.GroupName)
+	_, err = ssc.apiClient.AppsV1().PetSets(set.Namespace).Update(context.TODO(), setCopy, metav1.UpdateOptions{})
+	return err
 }
