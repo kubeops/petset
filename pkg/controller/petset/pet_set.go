@@ -706,16 +706,11 @@ func (ssc *PetSetController) sync(ctx context.Context, key string) error {
 		utilruntime.HandleError(fmt.Errorf("unable to retrieve PetSet %v from store: %v", key, err))
 		return err
 	}
-
-	if set.Spec.Distributed && set.DeletionTimestamp != nil {
-		return ssc.handleFinalizerRemove(set)
-	}
-
-	if set.DeletionTimestamp == nil && set.Spec.Distributed && !core_util.HasFinalizer(set.ObjectMeta, api.GroupName) {
-		setCopy := set.DeepCopy()
-		setCopy.ObjectMeta = core_util.AddFinalizer(setCopy.ObjectMeta, api.GroupName)
-		_, err = ssc.apiClient.AppsV1().PetSets(namespace).Update(ctx, setCopy, metav1.UpdateOptions{})
-		return err
+	if set.Spec.Distributed {
+		rq, err := ssc.handleDistributedPetset(ctx, set)
+		if rq {
+			return err
+		}
 	}
 
 	selector, err := metav1.LabelSelectorAsSelector(set.Spec.Selector)
@@ -779,4 +774,38 @@ func (ssc *PetSetController) handleFinalizerRemove(set *api.PetSet) error {
 	setCopy.ObjectMeta = core_util.RemoveFinalizer(setCopy.ObjectMeta, api.GroupName)
 	_, err = ssc.apiClient.AppsV1().PetSets(set.Namespace).Update(context.TODO(), setCopy, metav1.UpdateOptions{})
 	return err
+}
+
+func (ssc *PetSetController) handleDistributedPetset(ctx context.Context, set *api.PetSet) (bool, error) {
+	setCopy := set.DeepCopy()
+
+	if set.DeletionTimestamp != nil {
+		return true, ssc.handleFinalizerRemove(set)
+	}
+	rq := false
+	if setCopy.Spec.Selector == nil {
+		setCopy.Spec.Selector = &metav1.LabelSelector{}
+	}
+
+	if _, exists := setCopy.Spec.Selector.MatchLabels["app.kubernetes.io/namespace"]; !exists {
+		setCopy.Spec.Selector.MatchLabels["app.kubernetes.io/namespace"] = set.Namespace
+		rq = true
+	}
+
+	if setCopy.Spec.Template.Labels == nil {
+		setCopy.Spec.Template.Labels = make(map[string]string)
+	}
+	if _, exists := setCopy.Spec.Template.Labels["app.kubernetes.io/namespace"]; !exists {
+		setCopy.Spec.Template.Labels["app.kubernetes.io/namespace"] = set.Namespace
+		rq = true
+	}
+	if setCopy.DeletionTimestamp == nil && !core_util.HasFinalizer(setCopy.ObjectMeta, api.GroupName) {
+		setCopy.ObjectMeta = core_util.AddFinalizer(setCopy.ObjectMeta, api.GroupName)
+		rq = true
+	}
+	if !rq {
+		return false, nil
+	}
+	_, err := ssc.apiClient.AppsV1().PetSets(set.Namespace).Update(ctx, setCopy, metav1.UpdateOptions{})
+	return rq, err
 }

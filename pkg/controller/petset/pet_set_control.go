@@ -432,10 +432,8 @@ func (ssc *defaultPetSetControl) processReplica(
 			}
 		}
 		if err := ssc.podControl.CreateStatefulPod(ctx, set, replicas[i]); err != nil {
-			klog.Infoln("annotations 3", set.Annotations)
 			return true, err
 		}
-		klog.Infoln("annotations 4", set.Annotations)
 
 		if monotonic {
 			// if the set does not allow bursting, return immediately
