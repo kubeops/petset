@@ -75,6 +75,7 @@ type OCMPodPlacementPolicySpec struct {
 
 type OCMSpec struct {
 	ClusterSpec []OCMPodPlacementPolicySpec `json:"clusterSpec,omitempty"`
+	Slice       string                      `json:"slice,omitempty"`
 }
 
 type ZoneSpreadConstraint struct {

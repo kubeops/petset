@@ -114,6 +114,8 @@ spec:
                           type: integer
                       type: object
                     type: array
+                  slice:
+                    type: string
                 type: object
               zoneSpreadConstraint:
                 properties:
