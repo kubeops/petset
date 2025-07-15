@@ -756,7 +756,11 @@ func (ssc *PetSetController) syncPetSet(ctx context.Context, set *api.PetSet, po
 
 func (ssc *PetSetController) handleFinalizerRemove(set *api.PetSet) error {
 	// TODO: cc@Arnob vai. should Delete all the Manifestworks
-	selector, err := metav1.LabelSelectorAsSelector(set.Spec.Selector)
+
+	sel := set.Spec.Selector.DeepCopy()
+	sel.MatchLabels["open-cluster-management.io/role"] = "pod"
+
+	selector, err := metav1.LabelSelectorAsSelector(sel)
 	if err != nil {
 		return err
 	}

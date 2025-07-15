@@ -54,11 +54,15 @@ func (om *realStatefulPodControlObjectManager) CreatePodManifestWork(ctx context
 		return fmt.Errorf("failed to convert pod to unstructured: %w", err)
 	}
 
+	// Adding an extra label to only delete the pod and ignore deleting pvc
+	labels := DeepCopyLabel(pod.ObjectMeta.Labels)
+	labels["open-cluster-management.io/role"] = "pod"
+
 	mw := &apiworkv1.ManifestWork{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pod.Name,
 			Namespace: namespace,
-			Labels:    pod.Labels,
+			Labels:    labels,
 			// Annotations:     pod.Annotations,
 			// OwnerReferences: pod.OwnerReferences,
 		},
@@ -302,12 +306,14 @@ func (om *realStatefulPodControlObjectManager) CreateClaimManifestWork(set *api.
 	if err != nil {
 		return fmt.Errorf("failed to convert claim to unstructured: %w", err)
 	}
+	labels := DeepCopyLabel(claim.ObjectMeta.Labels)
+	labels["open-cluster-management.io/role"] = "pvc"
 
 	mw := &apiworkv1.ManifestWork{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      claim.Name,
 			Namespace: namespace,
-			Labels:    claim.Labels,
+			Labels:    labels,
 			// Annotations:     claim.Annotations,
 			// OwnerReferences: claim.OwnerReferences,
 		},
@@ -496,4 +502,12 @@ func getOcmClusterName(pp *api.PlacementPolicy, ordinal int) string {
 		}
 	}
 	return clusterName
+}
+
+func DeepCopyLabel(label map[string]string) map[string]string {
+	newLabel := make(map[string]string)
+	for key, value := range label {
+		newLabel[key] = value
+	}
+	return newLabel
 }
