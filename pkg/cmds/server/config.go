@@ -189,7 +189,7 @@ func (c *OperatorConfig) New(ctx context.Context) (manager.Manager, error) {
 
 		return nil
 	})); err != nil {
-		setupLog.Error(err, "unable to set default kubeBuilder client")
+		setupLog.Error(err, "unable to set manifestwork informer factory")
 		os.Exit(1)
 	}
 
