@@ -109,7 +109,6 @@ func (om *realStatefulPodControlObjectManager) CreatePod(ctx context.Context, po
 		return om.CreatePodManifestWork(ctx, pod, set)
 	}
 	_, err := om.client.CoreV1().Pods(pod.Namespace).Create(ctx, pod, metav1.CreateOptions{})
-	klog.Infoln("(((((((((((((((((((((((((((((((((((((((((((((It shouldn't be here)))))))))))))))))))))))))")
 	return err
 }
 

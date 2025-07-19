@@ -101,6 +101,10 @@ func (om *realStatefulPodControlObjectManager) CreatePodManifestWork(ctx context
 									Name: "ReadyCondition",
 									Path: ".status.conditions[?(@.type=='Ready')]",
 								},
+								{
+									Name: "PodRoleLabel",
+									Path: ".metadata.labels.kubedb-role",
+								},
 							},
 						},
 					},
