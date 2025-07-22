@@ -759,6 +759,9 @@ func (ssc *defaultPetSetControl) newVersionedPetSetPod(currentSet, updateSet *ap
 		(currentSet.Spec.UpdateStrategy.RollingUpdate != nil && ordinal < (getStartOrdinal(currentSet)+int(*currentSet.Spec.UpdateStrategy.RollingUpdate.Partition))) {
 		if currentSet.Spec.PodPlacementPolicy != nil {
 			placementPolicy, err = ssc.podControl.objectMgr.GetPlacementPolicy(currentSet.Spec.PodPlacementPolicy.Name)
+			if err != nil {
+				return nil, err
+			}
 		}
 		podList, err := ssc.podControl.objectMgr.ListPods(currentSet.Namespace, labels.SelectorFromSet(currentSet.Spec.Template.Labels).String(), currentSet)
 		if err != nil {
