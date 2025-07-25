@@ -60,7 +60,6 @@ type StatefulPodControlObjectManager interface {
 // implementation provides for PVC creation, ordered Pod creation, ordered Pod termination, and Pod identity enforcement.
 // Manipulation of objects is provided through objectMgr, which allows the k8s API to be mocked out for testing.
 type StatefulPodControl struct {
-	// mwMgr     StatefulPodControlObjectManager
 	objectMgr StatefulPodControlObjectManager
 	recorder  record.EventRecorder
 }
@@ -77,21 +76,13 @@ func NewStatefulPodControl(
 	recorder record.EventRecorder,
 ) *StatefulPodControl {
 	return &StatefulPodControl{
-		//mwMgr: &realStatefulManifestWorkControlObjectManager{
-		//	mClient:         mClient,
-		//	client:          client,
-		//	podLister:       podLister,
-		//	manifestLister:  manifestLister,
-		//	placementLister: placementLister,
-		//	claimLister:     claimLister,
-		//},
 		&realStatefulPodControlObjectManager{mClient, client, podLister, manifestLister, placementLister, claimLister}, recorder,
 	}
 }
 
 // NewStatefulPodControlFromManager creates a StatefulPodControl using the given StatefulPodControlObjectManager and recorder.
 func NewStatefulPodControlFromManager(om StatefulPodControlObjectManager, recorder record.EventRecorder) *StatefulPodControl {
-	return &StatefulPodControl{objectMgr: om, recorder: recorder}
+	return &StatefulPodControl{om, recorder}
 }
 
 // realStatefulPodControlObjectManager uses a clientset.Interface and listers.
@@ -118,10 +109,8 @@ func (om *realStatefulPodControlObjectManager) GetPlacementPolicy(name string) (
 
 func (om *realStatefulPodControlObjectManager) GetPod(namespace, podName string, set *api.PetSet) (*v1.Pod, error) {
 	if set.Spec.Distributed {
-		klog.Infoln("Getting ManifestWork")
 		return om.GetPodFromManifestWork(set, podName)
 	}
-
 	return om.podLister.Pods(namespace).Get(podName)
 }
 
@@ -148,10 +137,6 @@ func (om *realStatefulPodControlObjectManager) ListPods(ns, labels string, set *
 		podList, err := om.ListPodsManifestWork(set)
 		if err != nil {
 			return nil, err
-		}
-		klog.Infoln("ListPods from manifestwork")
-		for _, pod := range podList.Items {
-			klog.Infoln(pod.Name, pod.Namespace)
 		}
 		return podList, nil
 	}

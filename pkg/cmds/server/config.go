@@ -71,8 +71,6 @@ type OperatorConfig struct {
 	ProbeAddr            string
 	SecureMetrics        bool
 	EnableHTTP2          bool
-
-	IsDistributed bool
 }
 
 // New returns a new instance of KubeDBWebhookServer from the given config.
@@ -231,10 +229,8 @@ func (c *OperatorConfig) New(ctx context.Context) (manager.Manager, error) {
 
 	c.KubeInformerFactory.Start(ctx.Done())
 	c.InformerFactory.Start(ctx.Done())
-	// c.ManifestInformerFactory.Start(ctx.Done())
 
 	if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
-		psCtrl.KBClient = mgr.GetClient()
 		psCtrl.Run(ctx, c.NumThreads)
 		return nil
 	})); err != nil {

@@ -40,11 +40,9 @@ func (om *realStatefulPodControlObjectManager) CreatePodManifestWork(ctx context
 		return fmt.Errorf("pod placement policy can't be nil for distributed petset")
 	}
 	namespace := pod.Annotations["open-cluster-management.io/cluster-name"]
-
 	if namespace == "" {
 		return fmt.Errorf("open-cluster-management.io/cluster-name annotation is empty")
 	}
-	klog.Infof("Create ManifestWork for Pod %s/%s", pod.Namespace, pod.Name)
 	pod.APIVersion = "v1"
 	pod.Kind = "Pod"
 	pod.ObjectMeta.GenerateName = ""
@@ -56,7 +54,7 @@ func (om *realStatefulPodControlObjectManager) CreatePodManifestWork(ctx context
 
 	// Adding an extra label to only delete the pod and ignore deleting pvc
 	labels := DeepCopyLabel(pod.ObjectMeta.Labels)
-	labels["open-cluster-management.io/role"] = "pod"
+	labels[ManifestWorkRoleLabel] = RolePod
 
 	mw := &apiworkv1.ManifestWork{
 		ObjectMeta: metav1.ObjectMeta{
@@ -169,7 +167,6 @@ func (om *realStatefulPodControlObjectManager) GetPodFromManifestWork(set *api.P
 			}
 		}
 	}
-	klog.Infoln("New pod status:", newStatus)
 	pod.Status = newStatus
 
 	return pod, nil
@@ -311,7 +308,7 @@ func (om *realStatefulPodControlObjectManager) CreateClaimManifestWork(set *api.
 		return fmt.Errorf("failed to convert claim to unstructured: %w", err)
 	}
 	labels := DeepCopyLabel(claim.ObjectMeta.Labels)
-	labels["open-cluster-management.io/role"] = "pvc"
+	labels[ManifestWorkRoleLabel] = RolePVC
 
 	mw := &apiworkv1.ManifestWork{
 		ObjectMeta: metav1.ObjectMeta{
@@ -340,16 +337,12 @@ func (om *realStatefulPodControlObjectManager) CreateClaimManifestWork(set *api.
 
 // GetClaimFromManifestWork retrieves a PersistentVolumeClaim by getting its corresponding ManifestWork from the lister.
 func (om *realStatefulPodControlObjectManager) GetClaimFromManifestWork(set *api.PetSet, claimName string) (*v1.PersistentVolumeClaim, error) {
-	klog.Infof("trying to get claim from manifestwork %s/%s----------------------------", set.Namespace, set.Name)
 	ordinal, _ := strconv.Atoi(getOrdinalFromClaim(claimName))
 	namespace, err := om.getOcmClusterName(set.Spec.PodPlacementPolicy.Name, ordinal)
-	klog.Infof("***********************************###############################################")
-	klog.Infoln("namespace claim: ", namespace)
-	klog.Infof("***********************************###############################################")
+
 	if namespace == "" {
 		klog.Errorf("failed to get ocm clustername for %v, err : %v", claimName, err)
 		pvcResource := schema.GroupResource{Group: "", Resource: "persistentvolumeclaims"}
-
 		return nil, errors.NewNotFound(pvcResource, claimName)
 	}
 
@@ -415,10 +408,8 @@ func (om *realStatefulPodControlObjectManager) getOcmClusterName(ppName string, 
 	return getOcmClusterName(pp, ordinal), nil
 }
 
-// ListPodsManifestWork lists all ManifestWorks matching the PetSet's selector and reconstructs
-// the Pod objects from them. It safely handles ManifestWorks containing multiple or non-Pod resources.
-func ListPodsManifestWork(manifestLister manifestlisters.ManifestWorkLister, set *api.PetSet) (*v1.PodList, error) {
-	klog.Infof("Listing ManifestWorks for distributed PetSet %s/%s using lister", set.Namespace, set.Name)
+func ListPodsFromManifestWork(manifestLister manifestlisters.ManifestWorkLister, set *api.PetSet) (*v1.PodList, error) {
+
 	selector, err := metav1.LabelSelectorAsSelector(set.Spec.Selector)
 	if err != nil {
 		return nil, fmt.Errorf("could not convert PetSet selector to selector: %w", err)
