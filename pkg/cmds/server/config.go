@@ -191,6 +191,11 @@ func (c *OperatorConfig) New(ctx context.Context) (manager.Manager, error) {
 		os.Exit(1)
 	}
 
+	if err = webhooks.SetupPlacementPolicyWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "PlacementPolicy")
+		os.Exit(1)
+	}
+
 	if err = webhooks.SetupPetSetWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "PetSet")
 		os.Exit(1)
