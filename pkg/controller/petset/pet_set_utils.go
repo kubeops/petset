@@ -36,6 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
+	apiworkv1 "open-cluster-management.io/api/work/v1"
 )
 
 var patchCodec = scheme.Codecs.LegacyCodec(api.SchemeGroupVersion)
@@ -75,9 +76,32 @@ func getParentNameAndOrdinal(pod *v1.Pod) (string, int) {
 	return parent, ordinal
 }
 
+// getParentNameAndOrdinalFromManifestWork gets the name of pod's parent PetSet and pod's ordinal as extracted from its Name. If
+// the Pod was not created by a PetSet, its parent is considered to be empty string, and its ordinal is considered
+// to be -1.
+func getParentNameAndOrdinalFromManifestWork(mw *apiworkv1.ManifestWork) (string, int) {
+	parent := ""
+	ordinal := -1
+	subMatches := statefulPodRegex.FindStringSubmatch(mw.Name)
+	if len(subMatches) < 3 {
+		return parent, ordinal
+	}
+	parent = subMatches[1]
+	if i, err := strconv.ParseInt(subMatches[2], 10, 32); err == nil {
+		ordinal = int(i)
+	}
+	return parent, ordinal
+}
+
 // getParentName gets the name of pod's parent PetSet. If pod has not parent, the empty string is returned.
 func getParentName(pod *v1.Pod) string {
 	parent, _ := getParentNameAndOrdinal(pod)
+	return parent
+}
+
+// getParentName gets the name of pod's parent PetSet. If pod has not parent, the empty string is returned.
+func getParentNameForManifestWork(mw *apiworkv1.ManifestWork) string {
+	parent, _ := getParentNameAndOrdinalFromManifestWork(mw)
 	return parent
 }
 
@@ -125,6 +149,11 @@ func getPersistentVolumeClaimName(set *api.PetSet, claim *v1.PersistentVolumeCla
 // isMemberOf tests if pod is a member of set.
 func isMemberOf(set *api.PetSet, pod *v1.Pod) bool {
 	return getParentName(pod) == set.Name
+}
+
+// isMemberOf tests if pod is a member of set.
+func isManifestWorkMemberOfPetSet(set *api.PetSet, mw *apiworkv1.ManifestWork) bool {
+	return getParentNameForManifestWork(mw) == set.Name
 }
 
 // identityMatches returns true if pod has a valid identity and network identity for a member of set.
@@ -471,7 +500,42 @@ func newPetSetPod(set *api.PetSet, placementPolicy *api.PlacementPolicy, ordinal
 	pod.Name = getPodName(set, ordinal)
 	initIdentity(set, pod)
 	updateStorage(set, pod)
+	setOCMPlacement(set, pInfo.PodIndex, pod, placementPolicy)
 	return pod
+}
+
+func setOCMPlacement(set *api.PetSet, ordinal int, pod *v1.Pod, placementPolicy *api.PlacementPolicy) {
+	if placementPolicy == nil || placementPolicy.Spec.OCM == nil || placementPolicy.Spec.OCM.ClusterSpec == nil {
+		return
+	}
+	clusterName := ""
+	replicaCount := 0
+	for i := 0; i < len(placementPolicy.Spec.OCM.ClusterSpec); i++ {
+		replicaCount += int(placementPolicy.Spec.OCM.ClusterSpec[i].Replicas)
+		if ordinal < replicaCount {
+			clusterName = placementPolicy.Spec.OCM.ClusterSpec[i].ClusterName
+			break
+		}
+	}
+	if pod.Annotations == nil {
+		pod.Annotations = make(map[string]string)
+	}
+	pod.Annotations[ManifestWorkClusterNameLabel] = clusterName
+	if set.Annotations == nil {
+		set.Annotations = make(map[string]string)
+	}
+	set.Annotations[fmt.Sprintf("open-cluster-management.io/%v", pod.GetName())] = clusterName
+}
+
+func setOCMPlacementForPVC(set *api.PetSet, ordinal int, pvc *v1.PersistentVolumeClaim, placementPolicy *api.PlacementPolicy) {
+	if placementPolicy == nil || placementPolicy.Spec.OCM == nil || placementPolicy.Spec.OCM.ClusterSpec == nil {
+		return
+	}
+	clusterName := getOcmClusterName(placementPolicy, ordinal)
+	if pvc.Annotations == nil {
+		pvc.Annotations = make(map[string]string)
+	}
+	pvc.Annotations[ManifestWorkClusterNameLabel] = clusterName
 }
 
 // getPatch returns a strategic merge patch that can be applied to restore a PetSet to a
@@ -630,4 +694,8 @@ func getPetSetMaxUnavailable(maxUnavailable *intstr.IntOrString, replicaCount in
 		maxUnavailableNum = 1
 	}
 	return maxUnavailableNum, nil
+}
+
+func getOrdinalFromClaim(claimName string) string {
+	return string(claimName[len(claimName)-1])
 }

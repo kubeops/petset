@@ -21,15 +21,32 @@ import (
 	"flag"
 	"time"
 
+	api "kubeops.dev/petset/apis/apps/v1"
 	"kubeops.dev/petset/client/clientset/versioned"
 	apiinformers "kubeops.dev/petset/client/informers/externalversions"
 	"kubeops.dev/petset/pkg/features"
 
 	"github.com/spf13/pflag"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	clientsetscheme "k8s.io/client-go/kubernetes/scheme"
+	manifestclient "open-cluster-management.io/api/client/work/clientset/versioned"
+	manifestinformers "open-cluster-management.io/api/client/work/informers/externalversions"
+	apiworkv1 "open-cluster-management.io/api/work/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
+
+var Scheme = runtime.NewScheme()
+
+func init() {
+	utilruntime.Must(clientsetscheme.AddToScheme(Scheme))
+	utilruntime.Must(apiworkv1.AddToScheme(Scheme))
+	utilruntime.Must(api.AddToScheme(Scheme))
+	utilruntime.Must(apiextensionsv1.AddToScheme(Scheme))
+}
 
 type OperatorOptions struct {
 	QPS   float64
@@ -107,9 +124,12 @@ func (s *OperatorOptions) ApplyTo(cfg *OperatorConfig) error {
 	if cfg.Client, err = versioned.NewForConfig(cfg.ClientConfig); err != nil {
 		return err
 	}
+	if cfg.manifestClient, err = manifestclient.NewForConfig(cfg.ClientConfig); err != nil {
+		return err
+	}
 	cfg.KubeInformerFactory = informers.NewSharedInformerFactory(cfg.KubeClient, cfg.ResyncPeriod)
 	cfg.InformerFactory = apiinformers.NewSharedInformerFactory(cfg.Client, cfg.ResyncPeriod)
-
+	cfg.ManifestInformerFactory = manifestinformers.NewSharedInformerFactory(cfg.manifestClient, cfg.ResyncPeriod)
 	cfg.MetricsAddr = s.MetricsAddr
 	cfg.ProbeAddr = s.ProbeAddr
 	cfg.EnableLeaderElection = s.EnableLeaderElection
