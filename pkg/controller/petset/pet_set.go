@@ -55,9 +55,10 @@ import (
 )
 
 const (
-	ManifestWorkRoleLabel = "open-cluster-management.io/role"
-	RolePod               = "pod"
-	RolePVC               = "pvc"
+	ManifestWorkRoleLabel        = "open-cluster-management.io/role"
+	ManifestWorkClusterNameLabel = "open-cluster-management.io/cluster-name"
+	RolePod                      = "pod"
+	RolePVC                      = "pvc"
 )
 
 // controllerKind contains the schema.GroupVersionKind for this controller type.
@@ -144,15 +145,12 @@ func NewPetSetController(
 	}
 
 	podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		// lookup the petset and enqueue
 		AddFunc: func(obj interface{}) {
 			ssc.addPod(logger, obj)
 		},
-		// lookup current and old petset if labels changed
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			ssc.updatePod(logger, oldObj, newObj)
 		},
-		// lookup petset accounting for deletion tombstones
 		DeleteFunc: func(obj interface{}) {
 			ssc.deletePod(logger, obj)
 		},
@@ -162,15 +160,12 @@ func NewPetSetController(
 	ssc.podListerSynced = podInformer.Informer().HasSynced
 
 	manifestInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		// lookup the petset and enqueue
 		AddFunc: func(obj interface{}) {
 			ssc.addManifestWork(logger, obj)
 		},
-		// lookup current and old petset if labels changed
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			ssc.updateManifestWork(logger, oldObj, newObj)
 		},
-		// lookup petset accounting for deletion tombstones
 		DeleteFunc: func(obj interface{}) {
 			ssc.deleteManifestWork(logger, obj)
 		},
@@ -384,7 +379,6 @@ func (ssc *PetSetController) getPodsForPetSet(ctx context.Context, set *api.PetS
 	return cm.ClaimPods(ctx, pods, filter)
 }
 
-// addManifest adds the petset for the manifestwork to the sync queue
 func (ssc *PetSetController) addManifestWork(logger klog.Logger, obj interface{}) {
 	mw := obj.(*apiworkv1.ManifestWork)
 	if mw.DeletionTimestamp != nil {
@@ -704,22 +698,7 @@ func (ssc *PetSetController) handleDistributedPetset(ctx context.Context, set *a
 		return true, ssc.handleFinalizerRemove(set)
 	}
 	rq := false
-	if setCopy.Spec.Selector == nil {
-		setCopy.Spec.Selector = &metav1.LabelSelector{}
-	}
 
-	if _, exists := setCopy.Spec.Selector.MatchLabels["app.kubernetes.io/namespace"]; !exists {
-		setCopy.Spec.Selector.MatchLabels["app.kubernetes.io/namespace"] = set.Namespace
-		rq = true
-	}
-
-	if setCopy.Spec.Template.Labels == nil {
-		setCopy.Spec.Template.Labels = make(map[string]string)
-	}
-	if _, exists := setCopy.Spec.Template.Labels["app.kubernetes.io/namespace"]; !exists {
-		setCopy.Spec.Template.Labels["app.kubernetes.io/namespace"] = set.Namespace
-		rq = true
-	}
 	if setCopy.DeletionTimestamp == nil && !core_util.HasFinalizer(setCopy.ObjectMeta, api.GroupName) {
 		setCopy.ObjectMeta = core_util.AddFinalizer(setCopy.ObjectMeta, api.GroupName)
 		rq = true
