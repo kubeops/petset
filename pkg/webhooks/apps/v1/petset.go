@@ -168,11 +168,24 @@ func (w *PetSetCustomWebhook) validatePlacementPolicy(ctx context.Context, set *
 		return fmt.Errorf("expected an OCM cluster spec for distributed petset in the %v/%v: %v, but got none", api.GroupName, api.ResourceKindPlacementPolicy, pp.Name)
 	}
 	cSum := 0
+	m := make(map[int32]struct{})
 	for i := 0; i < len(pp.Spec.OCM.ClusterSpec); i++ {
-		cSum += int(pp.Spec.OCM.ClusterSpec[i].Replicas)
+		cSum += len(pp.Spec.OCM.ClusterSpec[i].Replicas)
+		for _, replica := range pp.Spec.OCM.ClusterSpec[i].Replicas {
+			m[replica] = struct{}{}
+		}
 	}
 	if cSum < int(*set.Spec.Replicas) {
 		return fmt.Errorf("expected at least %d replicas in the placementPolicy %v, but got totalReplicas = %d", set.Spec.Replicas, pp.Name, cSum)
+	}
+	missing := make([]int32, 0)
+	for i := 0; i < int(*set.Spec.Replicas); i++ {
+		if _, ok := m[int32(i)]; !ok {
+			missing = append(missing, int32(i))
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("missing replica index %v at placementpolicy: %v", missing, pp.Name)
 	}
 	return nil
 }

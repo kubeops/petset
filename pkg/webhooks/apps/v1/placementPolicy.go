@@ -19,6 +19,7 @@ package v1
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	api "kubeops.dev/petset/apis/apps/v1"
 
@@ -69,7 +70,7 @@ func (w *PlacementPolicyCustomWebhook) ValidateCreate(ctx context.Context, obj r
 	pplog.Info("validate create", "name", ps.Name)
 
 	// TODO(user): fill in your validation logic upon object creation.
-	return nil, nil
+	return nil, w.validateCreatePlacementPolicy(ps)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
@@ -85,7 +86,7 @@ func (w *PlacementPolicyCustomWebhook) ValidateUpdate(ctx context.Context, old, 
 	pplog.Info("validate update", "name", pp.Name)
 
 	// TODO(user): fill in your validation logic upon object update.
-	return nil, w.validatePlacementPolicy(ctx, oldPP, pp)
+	return nil, w.validateUpdatePlacementPolicy(ctx, oldPP, pp)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
@@ -100,14 +101,62 @@ func (w *PlacementPolicyCustomWebhook) ValidateDelete(ctx context.Context, obj r
 	return nil, nil
 }
 
-func (w *PlacementPolicyCustomWebhook) validatePlacementPolicy(_ context.Context, oldPP *api.PlacementPolicy, newPP *api.PlacementPolicy) error {
-	if oldPP.Spec.OCM == nil || newPP.Spec.OCM == nil || oldPP.Spec.OCM.ClusterSpec == nil || newPP.Spec.OCM.ClusterSpec == nil {
+func (w *PlacementPolicyCustomWebhook) validateCreatePlacementPolicy(pp *api.PlacementPolicy) error {
+	if pp.Spec.OCM == nil || pp.Spec.OCM.ClusterSpec == nil {
 		return nil
 	}
-	for i := 0; i < min(len(oldPP.Spec.OCM.ClusterSpec), len(newPP.Spec.OCM.ClusterSpec)); i++ {
-		if oldPP.Spec.OCM.ClusterSpec[i].Replicas != newPP.Spec.OCM.ClusterSpec[i].Replicas || oldPP.Spec.OCM.ClusterSpec[i].ClusterName != newPP.Spec.OCM.ClusterSpec[i].ClusterName {
-			return fmt.Errorf("can't update existing clusterSpec, only append in the array is allowed")
+	allReplicas := flattenReplicas(pp.Spec.OCM.ClusterSpec)
+	sort.Slice(allReplicas, func(i, j int) bool {
+		return allReplicas[i] < allReplicas[j]
+	})
+
+	for i, replica := range allReplicas {
+		if int32(i) != replica {
+			return fmt.Errorf("invalid replica set: indices must be a contiguous block starting from 0. Found %d, expected %d", replica, i)
 		}
 	}
 	return nil
+}
+
+func (w *PlacementPolicyCustomWebhook) validateUpdatePlacementPolicy(_ context.Context, oldPP *api.PlacementPolicy, newPP *api.PlacementPolicy) error {
+	if oldPP.Spec.OCM == nil || newPP.Spec.OCM == nil {
+		return nil
+	}
+
+	if err := w.validateCreatePlacementPolicy(newPP); err != nil {
+		return err
+	}
+
+	oldMap := buildReplicaClusterMap(oldPP.Spec.OCM.ClusterSpec)
+	newMap := buildReplicaClusterMap(newPP.Spec.OCM.ClusterSpec)
+
+	commonLen := min(len(oldMap), len(newMap))
+
+	for i := 0; i < commonLen; i++ {
+		idx := int32(i)
+		if oldMap[idx] != newMap[idx] {
+			return fmt.Errorf("cannot modify existing replica assignments. Replica %d was moved from cluster %q to %q", idx, oldMap[idx], newMap[idx])
+		}
+	}
+	return nil
+}
+
+// flattenReplicas takes the cluster spec and returns a single slice of all replica indices.
+func flattenReplicas(spec []api.OCMPodPlacementPolicySpec) []int32 {
+	var allReplicas []int32
+	for _, cluster := range spec {
+		allReplicas = append(allReplicas, cluster.Replicas...)
+	}
+	return allReplicas
+}
+
+// buildReplicaClusterMap creates a map of replica index to its assigned cluster name.
+func buildReplicaClusterMap(spec []api.OCMPodPlacementPolicySpec) map[int32]string {
+	replicaMap := make(map[int32]string)
+	for _, cluster := range spec {
+		for _, replica := range cluster.Replicas {
+			replicaMap[replica] = cluster.ClusterName
+		}
+	}
+	return replicaMap
 }

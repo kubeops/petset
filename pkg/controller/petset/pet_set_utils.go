@@ -504,16 +504,19 @@ func newPetSetPod(set *api.PetSet, placementPolicy *api.PlacementPolicy, ordinal
 	return pod
 }
 
-func setOCMPlacement(set *api.PetSet, ordinal int, pod *v1.Pod, placementPolicy *api.PlacementPolicy) {
-	if placementPolicy == nil || placementPolicy.Spec.OCM == nil || placementPolicy.Spec.OCM.ClusterSpec == nil {
+func setOCMPlacement(set *api.PetSet, ordinal int, pod *v1.Pod, pp *api.PlacementPolicy) {
+	if pp == nil || pp.Spec.OCM == nil || pp.Spec.OCM.ClusterSpec == nil {
 		return
 	}
 	clusterName := ""
-	replicaCount := 0
-	for i := 0; i < len(placementPolicy.Spec.OCM.ClusterSpec); i++ {
-		replicaCount += int(placementPolicy.Spec.OCM.ClusterSpec[i].Replicas)
-		if ordinal < replicaCount {
-			clusterName = placementPolicy.Spec.OCM.ClusterSpec[i].ClusterName
+	for i := 0; i < len(pp.Spec.OCM.ClusterSpec); i++ {
+		for j := 0; j < len(pp.Spec.OCM.ClusterSpec[i].Replicas); j++ {
+			if ordinal == int(pp.Spec.OCM.ClusterSpec[i].Replicas[j]) {
+				clusterName = pp.Spec.OCM.ClusterSpec[i].ClusterName
+				break
+			}
+		}
+		if clusterName != "" {
 			break
 		}
 	}

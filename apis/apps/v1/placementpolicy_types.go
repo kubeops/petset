@@ -69,8 +69,8 @@ type PlacementPolicySpec struct {
 }
 
 type OCMPodPlacementPolicySpec struct {
-	ClusterName string `json:"clusterName,omitempty"`
-	Replicas    int32  `json:"replicas,omitempty"`
+	ClusterName string  `json:"clusterName,omitempty"`
+	Replicas    []int32 `json:"replicas,omitempty"`
 }
 
 type OCMSpec struct {

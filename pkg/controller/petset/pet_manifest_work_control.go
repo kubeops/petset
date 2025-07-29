@@ -471,14 +471,27 @@ func ListPodsFromManifestWork(manifestLister manifestlisters.ManifestWorkLister,
 
 func getOcmClusterName(pp *api.PlacementPolicy, ordinal int) string {
 	clusterName := ""
-	replicaCount := 0
+	if pp == nil || pp.Spec.OCM == nil || pp.Spec.OCM.ClusterSpec == nil {
+		klog.Errorf("no OCM cluster spec found in placement policy")
+		return ""
+	}
 	for i := 0; i < len(pp.Spec.OCM.ClusterSpec); i++ {
-		replicaCount += int(pp.Spec.OCM.ClusterSpec[i].Replicas)
-		if ordinal < replicaCount {
-			clusterName = pp.Spec.OCM.ClusterSpec[i].ClusterName
-			break
+		for j := 0; j < len(pp.Spec.OCM.ClusterSpec[i].Replicas); j++ {
+			if ordinal == int(pp.Spec.OCM.ClusterSpec[i].Replicas[j]) {
+				clusterName = pp.Spec.OCM.ClusterSpec[i].ClusterName
+				return clusterName
+			}
 		}
 	}
+	//replicaCount := 0
+	//for i := 0; i < len(pp.Spec.OCM.ClusterSpec); i++ {
+	//	replicaCount += int(pp.Spec.OCM.ClusterSpec[i].Replicas)
+	//	if ordinal < replicaCount {
+	//		clusterName = pp.Spec.OCM.ClusterSpec[i].ClusterName
+	//		break
+	//	}
+	//}
+
 	return clusterName
 }
 

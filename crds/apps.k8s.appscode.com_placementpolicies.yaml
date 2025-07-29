@@ -110,8 +110,10 @@ spec:
                         clusterName:
                           type: string
                         replicas:
-                          format: int32
-                          type: integer
+                          items:
+                            format: int32
+                            type: integer
+                          type: array
                       type: object
                     type: array
                   slice:
