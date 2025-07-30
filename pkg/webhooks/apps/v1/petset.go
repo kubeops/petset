@@ -164,14 +164,14 @@ func (w *PetSetCustomWebhook) validatePlacementPolicy(ctx context.Context, set *
 	if err != nil {
 		return err
 	}
-	if pp.Spec.OCM == nil || pp.Spec.OCM.ClusterSpec == nil {
+	if pp.Spec.OCM == nil || pp.Spec.OCM.DistributionRules == nil {
 		return fmt.Errorf("expected an OCM cluster spec for distributed petset in the %v/%v: %v, but got none", api.GroupName, api.ResourceKindPlacementPolicy, pp.Name)
 	}
 	cSum := 0
 	m := make(map[int32]struct{})
-	for i := 0; i < len(pp.Spec.OCM.ClusterSpec); i++ {
-		cSum += len(pp.Spec.OCM.ClusterSpec[i].Replicas)
-		for _, replica := range pp.Spec.OCM.ClusterSpec[i].Replicas {
+	for i := 0; i < len(pp.Spec.OCM.DistributionRules); i++ {
+		cSum += len(pp.Spec.OCM.DistributionRules[i].Replicas)
+		for _, replica := range pp.Spec.OCM.DistributionRules[i].Replicas {
 			m[replica] = struct{}{}
 		}
 	}

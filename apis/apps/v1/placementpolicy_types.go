@@ -69,14 +69,14 @@ type PlacementPolicySpec struct {
 	OCM *OCMSpec `json:"ocm,omitempty"`
 }
 
+type OCMSpec struct {
+	DistributionRules []OCMPodPlacementPolicySpec `json:"distributionRules,omitempty"`
+	SliceName         string                      `json:"sliceName,omitempty"`
+}
+
 type OCMPodPlacementPolicySpec struct {
 	ClusterName string  `json:"clusterName,omitempty"`
 	Replicas    []int32 `json:"replicas,omitempty"`
-}
-
-type OCMSpec struct {
-	ClusterSpec []OCMPodPlacementPolicySpec `json:"clusterSpec,omitempty"`
-	Slice       string                      `json:"slice,omitempty"`
 }
 
 type ZoneSpreadConstraint struct {

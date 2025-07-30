@@ -109,7 +109,7 @@ func (s *petSetLister) GetManifestWorkPetSets(mw *apiworkv1.ManifestWork) ([]*ap
 	}
 
 	if len(psList) == 0 {
-		return nil, fmt.Errorf("could not find any PetSet for manifestwork %s in any namespace with labels: %v", mw.Name, mw.Labels)
+		return nil, fmt.Errorf("could not find any PetSet for manifestwork %v/%s in any namespace with labels: %v", mw.Namespace, mw.Name, mw.Labels)
 	}
 
 	if len(psList) > 1 {

@@ -102,10 +102,10 @@ func (w *PlacementPolicyCustomWebhook) ValidateDelete(ctx context.Context, obj r
 }
 
 func (w *PlacementPolicyCustomWebhook) validateCreatePlacementPolicy(pp *api.PlacementPolicy) error {
-	if pp.Spec.OCM == nil || pp.Spec.OCM.ClusterSpec == nil {
+	if pp.Spec.OCM == nil || pp.Spec.OCM.DistributionRules == nil {
 		return nil
 	}
-	allReplicas := flattenReplicas(pp.Spec.OCM.ClusterSpec)
+	allReplicas := flattenReplicas(pp.Spec.OCM.DistributionRules)
 	sort.Slice(allReplicas, func(i, j int) bool {
 		return allReplicas[i] < allReplicas[j]
 	})
@@ -127,8 +127,8 @@ func (w *PlacementPolicyCustomWebhook) validateUpdatePlacementPolicy(_ context.C
 		return err
 	}
 
-	oldMap := buildReplicaClusterMap(oldPP.Spec.OCM.ClusterSpec)
-	newMap := buildReplicaClusterMap(newPP.Spec.OCM.ClusterSpec)
+	oldMap := buildReplicaClusterMap(oldPP.Spec.OCM.DistributionRules)
+	newMap := buildReplicaClusterMap(newPP.Spec.OCM.DistributionRules)
 
 	commonLen := min(len(oldMap), len(newMap))
 
