@@ -65,6 +65,7 @@ type PlacementPolicySpec struct {
 	Affinity *Affinity `json:"affinity,omitempty"`
 
 	// OCM provides spec for distributed pod placements using open cluster management
+	// +optional
 	OCM *OCMSpec `json:"ocm,omitempty"`
 }
 
