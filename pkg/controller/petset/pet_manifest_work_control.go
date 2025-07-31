@@ -112,7 +112,7 @@ func (om *realStatefulPodControlObjectManager) CreatePodManifestWork(ctx context
 }
 
 func (om *realStatefulPodControlObjectManager) GetPodFromManifestWork(set *api.PetSet, manifestWorkName string) (*v1.Pod, error) {
-	ordinal, _ := strconv.Atoi(getOrdinalFromClaim(manifestWorkName))
+	ordinal, _ := strconv.Atoi(getOrdinalFromResource(manifestWorkName))
 	namespace, err := om.getOcmClusterName(set.Spec.PodPlacementPolicy.Name, ordinal)
 	if namespace == "" {
 		klog.Errorf("failed to get ocm clustername for %v, err : %v", manifestWorkName, err)
@@ -324,7 +324,7 @@ func (om *realStatefulPodControlObjectManager) CreateClaimManifestWork(set *api.
 
 // GetClaimFromManifestWork retrieves a PersistentVolumeClaim by getting its corresponding ManifestWork from the lister.
 func (om *realStatefulPodControlObjectManager) GetClaimFromManifestWork(set *api.PetSet, claimName string) (*v1.PersistentVolumeClaim, error) {
-	ordinal, _ := strconv.Atoi(getOrdinalFromClaim(claimName))
+	ordinal, _ := strconv.Atoi(getOrdinalFromResource(claimName))
 	namespace, err := om.getOcmClusterName(set.Spec.PodPlacementPolicy.Name, ordinal)
 
 	if namespace == "" {
