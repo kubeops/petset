@@ -54,13 +54,6 @@ import (
 	apiworkv1 "open-cluster-management.io/api/work/v1"
 )
 
-const (
-	ManifestWorkRoleLabel        = "open-cluster-management.io/role"
-	ManifestWorkClusterNameLabel = "open-cluster-management.io/cluster-name"
-	RolePod                      = "pod"
-	RolePVC                      = "pvc"
-)
-
 // controllerKind contains the schema.GroupVersionKind for this controller type.
 var controllerKind = api.SchemeGroupVersion.WithKind("PetSet")
 
@@ -669,7 +662,7 @@ func (ssc *PetSetController) handleFinalizerRemove(set *api.PetSet) error {
 
 	sel := set.Spec.Selector.DeepCopy()
 	// This role is added during manifestwork deletion
-	sel.MatchLabels[ManifestWorkRoleLabel] = RolePod
+	sel.MatchLabels[api.ManifestWorkRoleLabel] = api.RolePod
 
 	selector, err := metav1.LabelSelectorAsSelector(sel)
 	if err != nil {

@@ -523,7 +523,7 @@ func setOCMPlacement(set *api.PetSet, ordinal int, pod *v1.Pod, pp *api.Placemen
 	if pod.Annotations == nil {
 		pod.Annotations = make(map[string]string)
 	}
-	pod.Annotations[ManifestWorkClusterNameLabel] = clusterName
+	pod.Annotations[api.ManifestWorkClusterNameLabel] = clusterName
 	if set.Annotations == nil {
 		set.Annotations = make(map[string]string)
 	}
@@ -538,7 +538,7 @@ func setOCMPlacementForPVC(set *api.PetSet, ordinal int, pvc *v1.PersistentVolum
 	if pvc.Annotations == nil {
 		pvc.Annotations = make(map[string]string)
 	}
-	pvc.Annotations[ManifestWorkClusterNameLabel] = clusterName
+	pvc.Annotations[api.ManifestWorkClusterNameLabel] = clusterName
 }
 
 // getPatch returns a strategic merge patch that can be applied to restore a PetSet to a

@@ -39,9 +39,9 @@ func (om *realStatefulPodControlObjectManager) CreatePodManifestWork(ctx context
 	if set.Spec.PodPlacementPolicy == nil {
 		return fmt.Errorf("pod placement policy can't be nil for distributed petset")
 	}
-	namespace := pod.Annotations[ManifestWorkClusterNameLabel]
+	namespace := pod.Annotations[api.ManifestWorkClusterNameLabel]
 	if namespace == "" {
-		return fmt.Errorf("%v annotation is empty", ManifestWorkClusterNameLabel)
+		return fmt.Errorf("%v annotation is empty", api.ManifestWorkClusterNameLabel)
 	}
 	pod.APIVersion = "v1"
 	pod.Kind = "Pod"
@@ -53,7 +53,7 @@ func (om *realStatefulPodControlObjectManager) CreatePodManifestWork(ctx context
 
 	// Adding an extra label to only delete the pod and ignore deleting pvc
 	labels := DeepCopyLabel(pod.ObjectMeta.Labels)
-	labels[ManifestWorkRoleLabel] = RolePod
+	labels[api.ManifestWorkRoleLabel] = api.RolePod
 
 	mw := &apiworkv1.ManifestWork{
 		ObjectMeta: metav1.ObjectMeta{
@@ -166,9 +166,9 @@ func (om *realStatefulPodControlObjectManager) GetPodFromManifestWork(set *api.P
 
 // UpdatePodManifestWork handles updating a pod by updating its corresponding ManifestWork.
 func (om *realStatefulPodControlObjectManager) UpdatePodManifestWork(ctx context.Context, pod *v1.Pod) error {
-	namespace := pod.Annotations[ManifestWorkClusterNameLabel]
+	namespace := pod.Annotations[api.ManifestWorkClusterNameLabel]
 	if namespace == "" {
-		return fmt.Errorf("%v annotation is empty for pod %s", ManifestWorkClusterNameLabel, pod.Name)
+		return fmt.Errorf("%v annotation is empty for pod %s", api.ManifestWorkClusterNameLabel, pod.Name)
 	}
 
 	existingMW, err := om.mClient.WorkV1().ManifestWorks(namespace).Get(ctx, pod.Name, metav1.GetOptions{})
@@ -197,9 +197,9 @@ func (om *realStatefulPodControlObjectManager) UpdatePodManifestWork(ctx context
 
 // DeletePodManifestWork handles deleting a pod by deleting its corresponding ManifestWork.
 func (om *realStatefulPodControlObjectManager) DeletePodManifestWork(ctx context.Context, pod *v1.Pod) error {
-	namespace := pod.Annotations[ManifestWorkClusterNameLabel]
+	namespace := pod.Annotations[api.ManifestWorkClusterNameLabel]
 	if namespace == "" {
-		return fmt.Errorf("%v annotation is empty for pod %s", ManifestWorkClusterNameLabel, pod.Name)
+		return fmt.Errorf("%v annotation is empty for pod %s", api.ManifestWorkClusterNameLabel, pod.Name)
 	}
 
 	return om.mClient.WorkV1().ManifestWorks(namespace).Delete(ctx, pod.Name, metav1.DeleteOptions{})
@@ -285,9 +285,9 @@ func (om *realStatefulPodControlObjectManager) ListPodsManifestWork(set *api.Pet
 
 // CreateClaimManifestWork creates a ManifestWork on the hub to deploy a PersistentVolumeClaim to a managed cluster.
 func (om *realStatefulPodControlObjectManager) CreateClaimManifestWork(set *api.PetSet, claim *v1.PersistentVolumeClaim) error {
-	namespace := claim.Annotations[ManifestWorkClusterNameLabel]
+	namespace := claim.Annotations[api.ManifestWorkClusterNameLabel]
 	if namespace == "" {
-		return fmt.Errorf("%v annotation is empty for pvc %s/%s", ManifestWorkClusterNameLabel, claim.Namespace, claim.Name)
+		return fmt.Errorf("%v annotation is empty for pvc %s/%s", api.ManifestWorkClusterNameLabel, claim.Namespace, claim.Name)
 	}
 	claim.APIVersion = "v1"
 	claim.Kind = "PersistentVolumeClaim"
@@ -297,7 +297,7 @@ func (om *realStatefulPodControlObjectManager) CreateClaimManifestWork(set *api.
 		return fmt.Errorf("failed to convert claim to unstructured: %w", err)
 	}
 	labels := DeepCopyLabel(claim.ObjectMeta.Labels)
-	labels[ManifestWorkRoleLabel] = RolePVC
+	labels[api.ManifestWorkRoleLabel] = api.RolePVC
 
 	mw := &apiworkv1.ManifestWork{
 		ObjectMeta: metav1.ObjectMeta{
@@ -354,9 +354,9 @@ func (om *realStatefulPodControlObjectManager) GetClaimFromManifestWork(set *api
 
 // UpdateClaimManifestWork handles updating a PVC by updating its corresponding ManifestWork.
 func (om *realStatefulPodControlObjectManager) UpdateClaimManifestWork(set *api.PetSet, claim *v1.PersistentVolumeClaim) error {
-	namespace := claim.Annotations[ManifestWorkClusterNameLabel]
+	namespace := claim.Annotations[api.ManifestWorkClusterNameLabel]
 	if namespace == "" {
-		return fmt.Errorf("%v annotation is empty for pvc %s/%s", ManifestWorkClusterNameLabel, claim.Namespace, claim.Name)
+		return fmt.Errorf("%v annotation is empty for pvc %s/%s", api.ManifestWorkClusterNameLabel, claim.Namespace, claim.Name)
 	}
 
 	existingMW, err := om.mClient.WorkV1().ManifestWorks(namespace).Get(context.TODO(), claim.Name, metav1.GetOptions{})
