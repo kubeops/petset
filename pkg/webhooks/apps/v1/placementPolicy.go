@@ -142,18 +142,18 @@ func (w *PlacementPolicyCustomWebhook) validateUpdatePlacementPolicy(_ context.C
 }
 
 // flattenReplicas takes the cluster spec and returns a single slice of all replica indices.
-func flattenReplicas(spec []api.DistributionRule) []int32 {
+func flattenReplicas(rules []api.DistributionRule) []int32 {
 	var allReplicas []int32
-	for _, cluster := range spec {
+	for _, cluster := range rules {
 		allReplicas = append(allReplicas, cluster.Replicas...)
 	}
 	return allReplicas
 }
 
 // buildReplicaClusterMap creates a map of replica index to its assigned cluster name.
-func buildReplicaClusterMap(spec []api.DistributionRule) map[int32]string {
+func buildReplicaClusterMap(rules []api.DistributionRule) map[int32]string {
 	replicaMap := make(map[int32]string)
-	for _, cluster := range spec {
+	for _, cluster := range rules {
 		for _, replica := range cluster.Replicas {
 			replicaMap[replica] = cluster.ClusterName
 		}
