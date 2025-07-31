@@ -380,7 +380,7 @@ func (ssc *PetSetController) addManifestWork(logger klog.Logger, obj interface{}
 		ssc.deleteManifestWork(logger, mw)
 		return
 	}
-	sets := ssc.getPetSetsForManifestWorks(mw)
+	sets := ssc.getPetSetForManifestWork(mw)
 	if len(sets) == 0 {
 		return
 	}
@@ -400,7 +400,7 @@ func (ssc *PetSetController) updateManifestWork(logger klog.Logger, old, cur int
 		return
 	}
 
-	sets := ssc.getPetSetsForManifestWorks(curMW)
+	sets := ssc.getPetSetForManifestWork(curMW)
 	if len(sets) == 0 {
 		return
 	}
@@ -430,7 +430,7 @@ func (ssc *PetSetController) deleteManifestWork(logger klog.Logger, obj interfac
 		}
 	}
 
-	sets := ssc.getPetSetsForManifestWorks(mw)
+	sets := ssc.getPetSetForManifestWork(mw)
 	if len(sets) == 0 {
 		return
 	}
@@ -501,9 +501,9 @@ func (ssc *PetSetController) getPetSetsForPod(pod *v1.Pod) []*api.PetSet {
 	return sets
 }
 
-// getPetSetsForManifestWorks returns a list of PetSets that potentially match
+// getPetSetForManifestWork returns a list of PetSets that potentially match
 // a given manifestwork.
-func (ssc *PetSetController) getPetSetsForManifestWorks(mw *apiworkv1.ManifestWork) []*api.PetSet {
+func (ssc *PetSetController) getPetSetForManifestWork(mw *apiworkv1.ManifestWork) []*api.PetSet {
 	sets, err := ssc.setLister.GetManifestWorkPetSets(mw)
 	if err != nil {
 		return nil

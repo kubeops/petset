@@ -702,3 +702,11 @@ func getPetSetMaxUnavailable(maxUnavailable *intstr.IntOrString, replicaCount in
 func getOrdinalFromClaim(claimName string) string {
 	return string(claimName[len(claimName)-1])
 }
+
+func DeepCopyLabel(label map[string]string) map[string]string {
+	newLabel := make(map[string]string)
+	for key, value := range label {
+		newLabel[key] = value
+	}
+	return newLabel
+}

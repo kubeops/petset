@@ -483,22 +483,6 @@ func getOcmClusterName(pp *api.PlacementPolicy, ordinal int) string {
 			}
 		}
 	}
-	//replicaCount := 0
-	//for i := 0; i < len(pp.Spec.OCM.DistributionRules); i++ {
-	//	replicaCount += int(pp.Spec.OCM.DistributionRules[i].Replicas)
-	//	if ordinal < replicaCount {
-	//		clusterName = pp.Spec.OCM.DistributionRules[i].ClusterName
-	//		break
-	//	}
-	//}
 
 	return clusterName
-}
-
-func DeepCopyLabel(label map[string]string) map[string]string {
-	newLabel := make(map[string]string)
-	for key, value := range label {
-		newLabel[key] = value
-	}
-	return newLabel
 }
