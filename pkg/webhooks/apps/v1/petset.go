@@ -153,8 +153,11 @@ func (w *PetSetCustomWebhook) ValidateDelete(ctx context.Context, obj runtime.Ob
 }
 
 func (w *PetSetCustomWebhook) validatePlacementPolicy(ctx context.Context, set *api.PetSet) error {
-	if !set.Spec.Distributed || set.Spec.PodPlacementPolicy.Name == "" || set.Spec.Replicas == nil {
+	if !set.Spec.Distributed || set.Spec.Replicas == nil {
 		return nil
+	}
+	if set.Spec.PodPlacementPolicy == nil {
+		return fmt.Errorf("no PodPlacementPolicy defined for Distributed PetSet %q/%q", set.Namespace, set.Name)
 	}
 	pp := &api.PlacementPolicy{}
 	err := w.DefaultClient.Get(ctx, types.NamespacedName{
