@@ -36,7 +36,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"kmodules.xyz/client-go/apiextensions"
-	manifestclient "open-cluster-management.io/api/client/work/clientset/versioned"
+	ocmclient "open-cluster-management.io/api/client/work/clientset/versioned"
 	manifestinformers "open-cluster-management.io/api/client/work/informers/externalversions"
 	apiworkv1 "open-cluster-management.io/api/work/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -54,7 +54,7 @@ var setupLog = ctrl.Log.WithName("setup")
 type OperatorConfig struct {
 	ClientConfig *rest.Config
 
-	manifestClient          manifestclient.Interface
+	ocmClient               ocmclient.Interface
 	KubeClient              kubernetes.Interface
 	Client                  versioned.Interface
 	KubeInformerFactory     informers.SharedInformerFactory
@@ -229,7 +229,7 @@ func (c *OperatorConfig) New(ctx context.Context) (manager.Manager, error) {
 		c.ManifestInformerFactory.Work().V1().ManifestWorks(),
 		c.KubeClient,
 		c.Client,
-		c.manifestClient,
+		c.ocmClient,
 	)
 
 	c.KubeInformerFactory.Start(ctx.Done())

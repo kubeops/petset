@@ -71,7 +71,7 @@ type PetSetController struct {
 	// client interface
 	apiClient versioned.Interface
 	// manifestwork client
-	manifestClient manifestclient.Interface
+	ocmClient manifestclient.Interface
 	// control returns an interface capable of syncing a stateful set.
 	// Abstracted out for testing.
 	control PetSetControlInterface
@@ -113,19 +113,19 @@ func NewPetSetController(
 	manifestInformer manifestinformers.ManifestWorkInformer,
 	kubeClient clientset.Interface,
 	apiClient versioned.Interface,
-	manifestClient manifestclient.Interface,
+	ocmClient manifestclient.Interface,
 ) *PetSetController {
 	logger := klog.FromContext(ctx)
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "petset-controller"})
 	ssc := &PetSetController{
-		client:         kubeClient,
-		apiClient:      apiClient,
-		manifestClient: manifestClient,
+		client:    kubeClient,
+		apiClient: apiClient,
+		ocmClient: ocmClient,
 		control: NewDefaultPetSetControl(
 			NewStatefulPodControl(
 				kubeClient,
-				manifestClient,
+				ocmClient,
 				podInformer.Lister(),
 				manifestInformer.Lister(),
 				placementInformer.Lister(),
@@ -680,7 +680,7 @@ func (ssc *PetSetController) handleFinalizerRemove(set *api.PetSet) error {
 		return err
 	}
 	for _, mw := range mws {
-		err := ssc.manifestClient.WorkV1().ManifestWorks(mw.Namespace).Delete(context.TODO(), mw.Name, metav1.DeleteOptions{})
+		err := ssc.ocmClient.WorkV1().ManifestWorks(mw.Namespace).Delete(context.TODO(), mw.Name, metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}
