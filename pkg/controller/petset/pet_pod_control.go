@@ -19,6 +19,7 @@ package petset
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	api "kubeops.dev/petset/apis/apps/v1"
@@ -36,19 +37,21 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	manifestclient "open-cluster-management.io/api/client/work/clientset/versioned"
+	manifestlisters "open-cluster-management.io/api/client/work/listers/work/v1"
 )
 
 // StatefulPodControlObjectManager abstracts the manipulation of Pods and PVCs. The real controller implements this
 // with a clientset for writes and listers for reads; for tests we provide stubs.
 type StatefulPodControlObjectManager interface {
-	CreatePod(ctx context.Context, pod *v1.Pod) error
-	GetPod(namespace, podName string) (*v1.Pod, error)
-	UpdatePod(pod *v1.Pod) error
-	DeletePod(pod *v1.Pod) error
-	ListPods(ns, labels string) (*v1.PodList, error)
-	CreateClaim(claim *v1.PersistentVolumeClaim) error
-	GetClaim(namespace, claimName string) (*v1.PersistentVolumeClaim, error)
-	UpdateClaim(claim *v1.PersistentVolumeClaim) error
+	CreatePod(ctx context.Context, pod *v1.Pod, set *api.PetSet) error
+	GetPod(namespace, podName string, set *api.PetSet) (*v1.Pod, error)
+	UpdatePod(pod *v1.Pod, set *api.PetSet) error
+	DeletePod(pod *v1.Pod, set *api.PetSet) error
+	ListPods(ns, labels string, set *api.PetSet) (*v1.PodList, error)
+	CreateClaim(claim *v1.PersistentVolumeClaim, set *api.PetSet) error
+	GetClaim(namespace, claimName string, set *api.PetSet) (*v1.PersistentVolumeClaim, error)
+	UpdateClaim(claim *v1.PersistentVolumeClaim, set *api.PetSet) error
 	GetPlacementPolicy(name string) (*api.PlacementPolicy, error)
 }
 
@@ -65,12 +68,16 @@ type StatefulPodControl struct {
 // clientset, listers and EventRecorder.
 func NewStatefulPodControl(
 	client clientset.Interface,
+	mClient manifestclient.Interface,
 	podLister corelisters.PodLister,
+	manifestLister manifestlisters.ManifestWorkLister,
 	placementLister appslisters.PlacementPolicyLister,
 	claimLister corelisters.PersistentVolumeClaimLister,
 	recorder record.EventRecorder,
 ) *StatefulPodControl {
-	return &StatefulPodControl{&realStatefulPodControlObjectManager{client, podLister, placementLister, claimLister}, recorder}
+	return &StatefulPodControl{
+		&realStatefulPodControlObjectManager{mClient, client, podLister, manifestLister, placementLister, claimLister}, recorder,
+	}
 }
 
 // NewStatefulPodControlFromManager creates a StatefulPodControl using the given StatefulPodControlObjectManager and recorder.
@@ -80,13 +87,18 @@ func NewStatefulPodControlFromManager(om StatefulPodControlObjectManager, record
 
 // realStatefulPodControlObjectManager uses a clientset.Interface and listers.
 type realStatefulPodControlObjectManager struct {
+	mClient         manifestclient.Interface
 	client          clientset.Interface
 	podLister       corelisters.PodLister
+	manifestLister  manifestlisters.ManifestWorkLister
 	placementLister appslisters.PlacementPolicyLister
 	claimLister     corelisters.PersistentVolumeClaimLister
 }
 
-func (om *realStatefulPodControlObjectManager) CreatePod(ctx context.Context, pod *v1.Pod) error {
+func (om *realStatefulPodControlObjectManager) CreatePod(ctx context.Context, pod *v1.Pod, set *api.PetSet) error {
+	if set.Spec.Distributed {
+		return om.CreatePodManifestWork(ctx, pod, set)
+	}
 	_, err := om.client.CoreV1().Pods(pod.Namespace).Create(ctx, pod, metav1.CreateOptions{})
 	return err
 }
@@ -95,35 +107,66 @@ func (om *realStatefulPodControlObjectManager) GetPlacementPolicy(name string) (
 	return om.placementLister.Get(name)
 }
 
-func (om *realStatefulPodControlObjectManager) GetPod(namespace, podName string) (*v1.Pod, error) {
+func (om *realStatefulPodControlObjectManager) GetPod(namespace, podName string, set *api.PetSet) (*v1.Pod, error) {
+	if set.Spec.Distributed {
+		return om.GetPodFromManifestWork(set, podName)
+	}
 	return om.podLister.Pods(namespace).Get(podName)
 }
 
-func (om *realStatefulPodControlObjectManager) UpdatePod(pod *v1.Pod) error {
+// UpdatePod checks if the PetSet is distributed and calls the appropriate update method.
+func (om *realStatefulPodControlObjectManager) UpdatePod(pod *v1.Pod, set *api.PetSet) error {
+	if set.Spec.Distributed {
+		return om.UpdatePodManifestWork(context.TODO(), pod)
+	}
 	_, err := om.client.CoreV1().Pods(pod.Namespace).Update(context.TODO(), pod, metav1.UpdateOptions{})
 	return err
 }
 
-func (om *realStatefulPodControlObjectManager) DeletePod(pod *v1.Pod) error {
+// DeletePod checks if the PetSet is distributed and calls the appropriate delete method.
+func (om *realStatefulPodControlObjectManager) DeletePod(pod *v1.Pod, set *api.PetSet) error {
+	if set.Spec.Distributed {
+		return om.DeletePodManifestWork(context.TODO(), pod)
+	}
 	return om.client.CoreV1().Pods(pod.Namespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
 }
 
-func (om *realStatefulPodControlObjectManager) ListPods(ns, labels string) (*v1.PodList, error) {
+// ListPods checks if the PetSet is distributed and calls the appropriate list method.
+func (om *realStatefulPodControlObjectManager) ListPods(ns, labels string, set *api.PetSet) (*v1.PodList, error) {
+	if set.Spec.Distributed {
+		podList, err := om.ListPodsManifestWork(set)
+		if err != nil {
+			return nil, err
+		}
+		return podList, nil
+	}
+
 	return om.client.CoreV1().Pods(ns).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: labels,
 	})
 }
 
-func (om *realStatefulPodControlObjectManager) CreateClaim(claim *v1.PersistentVolumeClaim) error {
+// CreateClaim checks if the PetSet is distributed and calls the appropriate create method.
+func (om *realStatefulPodControlObjectManager) CreateClaim(claim *v1.PersistentVolumeClaim, set *api.PetSet) error {
+	if set.Spec.Distributed {
+		return om.CreateClaimManifestWork(set, claim)
+	}
 	_, err := om.client.CoreV1().PersistentVolumeClaims(claim.Namespace).Create(context.TODO(), claim, metav1.CreateOptions{})
 	return err
 }
 
-func (om *realStatefulPodControlObjectManager) GetClaim(namespace, claimName string) (*v1.PersistentVolumeClaim, error) {
+func (om *realStatefulPodControlObjectManager) GetClaim(namespace, claimName string, set *api.PetSet) (*v1.PersistentVolumeClaim, error) {
+	if set.Spec.Distributed {
+		return om.GetClaimFromManifestWork(set, claimName)
+	}
 	return om.claimLister.PersistentVolumeClaims(namespace).Get(claimName)
 }
 
-func (om *realStatefulPodControlObjectManager) UpdateClaim(claim *v1.PersistentVolumeClaim) error {
+// UpdateClaim checks if the PetSet is distributed and calls the appropriate update method.
+func (om *realStatefulPodControlObjectManager) UpdateClaim(claim *v1.PersistentVolumeClaim, set *api.PetSet) error {
+	if set.Spec.Distributed {
+		return om.UpdateClaimManifestWork(set, claim)
+	}
 	_, err := om.client.CoreV1().PersistentVolumeClaims(claim.Namespace).Update(context.TODO(), claim, metav1.UpdateOptions{})
 	return err
 }
@@ -134,8 +177,9 @@ func (spc *StatefulPodControl) CreateStatefulPod(ctx context.Context, set *api.P
 		spc.recordPodEvent("create", set, pod, err)
 		return err
 	}
+
 	// If we created the PVCs attempt to create the Pod
-	err := spc.objectMgr.CreatePod(ctx, pod)
+	err := spc.objectMgr.CreatePod(ctx, pod, set)
 	// sink already exists errors
 	if apierrors.IsAlreadyExists(err) {
 		return err
@@ -194,12 +238,12 @@ func (spc *StatefulPodControl) UpdateStatefulPod(ctx context.Context, set *api.P
 		attemptedUpdate = true
 		// commit the update, retrying on conflicts
 
-		updateErr := spc.objectMgr.UpdatePod(pod)
+		updateErr := spc.objectMgr.UpdatePod(pod, set)
 		if updateErr == nil {
 			return nil
 		}
 
-		if updated, err := spc.objectMgr.GetPod(set.Namespace, pod.Name); err == nil {
+		if updated, err := spc.objectMgr.GetPod(set.Namespace, pod.Name, set); err == nil {
 			// make a copy so we don't mutate the shared cache
 			pod = updated.DeepCopy()
 		} else {
@@ -215,9 +259,13 @@ func (spc *StatefulPodControl) UpdateStatefulPod(ctx context.Context, set *api.P
 }
 
 func (spc *StatefulPodControl) DeleteStatefulPod(set *api.PetSet, pod *v1.Pod) error {
-	err := spc.objectMgr.DeletePod(pod)
+	err := spc.objectMgr.DeletePod(pod, set)
 	spc.recordPodEvent("delete", set, pod, err)
 	return err
+}
+
+func (spc *StatefulPodControl) ListStatefulPods(ns, labels string, set *api.PetSet) (*v1.PodList, error) {
+	return spc.objectMgr.ListPods(ns, labels, set)
 }
 
 // ClaimsMatchRetentionPolicy returns false if the PVCs for pod are not consistent with set's PVC deletion policy.
@@ -229,7 +277,7 @@ func (spc *StatefulPodControl) ClaimsMatchRetentionPolicy(ctx context.Context, s
 	templates := set.Spec.VolumeClaimTemplates
 	for i := range templates {
 		claimName := getPersistentVolumeClaimName(set, &templates[i], ordinal)
-		claim, err := spc.objectMgr.GetClaim(set.Namespace, claimName)
+		claim, err := spc.objectMgr.GetClaim(set.Namespace, claimName, set)
 		switch {
 		case apierrors.IsNotFound(err):
 			klog.FromContext(ctx).V(4).Info("Expected claim missing, continuing to pick up in next iteration", "PVC", klog.KObj(claim))
@@ -251,7 +299,7 @@ func (spc *StatefulPodControl) UpdatePodClaimForRetentionPolicy(ctx context.Cont
 	templates := set.Spec.VolumeClaimTemplates
 	for i := range templates {
 		claimName := getPersistentVolumeClaimName(set, &templates[i], ordinal)
-		claim, err := spc.objectMgr.GetClaim(set.Namespace, claimName)
+		claim, err := spc.objectMgr.GetClaim(set.Namespace, claimName, set)
 		switch {
 		case apierrors.IsNotFound(err):
 			logger.V(4).Info("Expected claim missing, continuing to pick up in next iteration", "PVC", klog.KObj(claim))
@@ -262,7 +310,7 @@ func (spc *StatefulPodControl) UpdatePodClaimForRetentionPolicy(ctx context.Cont
 				claim = claim.DeepCopy() // Make a copy so we don't mutate the shared cache.
 				needsUpdate := updateClaimOwnerRefForSetAndPod(logger, claim, set, pod)
 				if needsUpdate {
-					err := spc.objectMgr.UpdateClaim(claim)
+					err := spc.objectMgr.UpdateClaim(claim, set)
 					if err != nil {
 						return fmt.Errorf("Could not update claim %s for delete policy ownerRefs: %w", claimName, err)
 					}
@@ -283,7 +331,7 @@ func (spc *StatefulPodControl) PodClaimIsStale(set *api.PetSet, pod *v1.Pod) (bo
 		return false, nil
 	}
 	for _, claim := range getPersistentVolumeClaims(set, pod) {
-		pvc, err := spc.objectMgr.GetClaim(claim.Namespace, claim.Name)
+		pvc, err := spc.objectMgr.GetClaim(claim.Namespace, claim.Name, set)
 		switch {
 		case apierrors.IsNotFound(err):
 			// If the claim doesn't exist yet, it can't be stale.
@@ -356,11 +404,18 @@ func (spc *StatefulPodControl) createMissingPersistentVolumeClaims(ctx context.C
 func (spc *StatefulPodControl) createPersistentVolumeClaims(set *api.PetSet, pod *v1.Pod) error {
 	var errs []error
 	for _, claim := range getPersistentVolumeClaims(set, pod) {
-		pvc, err := spc.objectMgr.GetClaim(claim.Namespace, claim.Name)
+		pvc, err := spc.objectMgr.GetClaim(claim.Namespace, claim.Name, set)
 		switch {
 		case apierrors.IsNotFound(err):
-			err := spc.objectMgr.CreateClaim(&claim)
-			if err != nil {
+			placementPolicy, err := spc.objectMgr.GetPlacementPolicy(set.Spec.PodPlacementPolicy.Name)
+			if err != nil && !apierrors.IsNotFound(err) {
+				errs = append(errs, err)
+			}
+			ordinal, _ := strconv.Atoi(getOrdinalFromResource(claim.Name))
+			setOCMPlacementForPVC(set, ordinal, &claim, placementPolicy)
+
+			err = spc.objectMgr.CreateClaim(&claim, set)
+			if err != nil && !apierrors.IsAlreadyExists(err) {
 				errs = append(errs, fmt.Errorf("failed to create PVC %s: %s", claim.Name, err))
 			}
 			if err == nil || !apierrors.IsAlreadyExists(err) {

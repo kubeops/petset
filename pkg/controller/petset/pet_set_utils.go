@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 
 	api "kubeops.dev/petset/apis/apps/v1"
 	podutil "kubeops.dev/petset/pkg/api/v1/pod"
@@ -471,7 +472,44 @@ func newPetSetPod(set *api.PetSet, placementPolicy *api.PlacementPolicy, ordinal
 	pod.Name = getPodName(set, ordinal)
 	initIdentity(set, pod)
 	updateStorage(set, pod)
+	setOCMPlacement(set, pInfo.PodIndex, pod, placementPolicy)
 	return pod
+}
+
+func setOCMPlacement(set *api.PetSet, ordinal int, pod *v1.Pod, pp *api.PlacementPolicy) {
+	if pp == nil || pp.Spec.OCM == nil || pp.Spec.OCM.DistributionRules == nil {
+		return
+	}
+	clusterName := ""
+	for i := 0; i < len(pp.Spec.OCM.DistributionRules); i++ {
+		for j := 0; j < len(pp.Spec.OCM.DistributionRules[i].Replicas); j++ {
+			if ordinal == int(pp.Spec.OCM.DistributionRules[i].Replicas[j]) {
+				clusterName = pp.Spec.OCM.DistributionRules[i].ClusterName
+				break
+			}
+		}
+		if clusterName != "" {
+			break
+		}
+	}
+	if pod.Annotations == nil {
+		pod.Annotations = make(map[string]string)
+	}
+	pod.Annotations[api.ManifestWorkClusterNameLabel] = clusterName
+	if set.Annotations == nil {
+		set.Annotations = make(map[string]string)
+	}
+}
+
+func setOCMPlacementForPVC(set *api.PetSet, ordinal int, pvc *v1.PersistentVolumeClaim, placementPolicy *api.PlacementPolicy) {
+	if placementPolicy == nil || placementPolicy.Spec.OCM == nil || placementPolicy.Spec.OCM.DistributionRules == nil {
+		return
+	}
+	clusterName := getOcmClusterName(placementPolicy, ordinal)
+	if pvc.Annotations == nil {
+		pvc.Annotations = make(map[string]string)
+	}
+	pvc.Annotations[api.ManifestWorkClusterNameLabel] = clusterName
 }
 
 // getPatch returns a strategic merge patch that can be applied to restore a PetSet to a
@@ -630,4 +668,17 @@ func getPetSetMaxUnavailable(maxUnavailable *intstr.IntOrString, replicaCount in
 		maxUnavailableNum = 1
 	}
 	return maxUnavailableNum, nil
+}
+
+func getOrdinalFromResource(resourceName string) string {
+	parts := strings.Split(resourceName, "-")
+	return parts[len(parts)-1]
+}
+
+func DeepCopyLabel(label map[string]string) map[string]string {
+	newLabel := make(map[string]string)
+	for key, value := range label {
+		newLabel[key] = value
+	}
+	return newLabel
 }

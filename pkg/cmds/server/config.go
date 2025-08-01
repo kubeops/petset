@@ -28,12 +28,17 @@ import (
 	"kubeops.dev/petset/pkg/controller/petset"
 	webhooks "kubeops.dev/petset/pkg/webhooks/apps/v1"
 
+	"github.com/pkg/errors"
 	core "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	clientscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
+	"kmodules.xyz/client-go/apiextensions"
+	ocmclient "open-cluster-management.io/api/client/work/clientset/versioned"
+	manifestinformers "open-cluster-management.io/api/client/work/informers/externalversions"
+	apiworkv1 "open-cluster-management.io/api/work/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
@@ -47,11 +52,14 @@ import (
 var setupLog = ctrl.Log.WithName("setup")
 
 type OperatorConfig struct {
-	ClientConfig        *rest.Config
-	KubeClient          kubernetes.Interface
-	Client              versioned.Interface
-	KubeInformerFactory informers.SharedInformerFactory
-	InformerFactory     apiinformers.SharedInformerFactory
+	ClientConfig *rest.Config
+
+	ocmClient               ocmclient.Interface
+	KubeClient              kubernetes.Interface
+	Client                  versioned.Interface
+	KubeInformerFactory     informers.SharedInformerFactory
+	InformerFactory         apiinformers.SharedInformerFactory
+	ManifestInformerFactory manifestinformers.SharedInformerFactory
 
 	ResyncPeriod   time.Duration
 	MaxNumRequeues int
@@ -138,7 +146,7 @@ func (c *OperatorConfig) New(ctx context.Context) (manager.Manager, error) {
 	}
 
 	mgr, err := ctrl.NewManager(c.ClientConfig, ctrl.Options{
-		Scheme:                 clientscheme.Scheme,
+		Scheme:                 Scheme,
 		Metrics:                metricsServerOptions,
 		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: c.ProbeAddr,
@@ -161,6 +169,30 @@ func (c *OperatorConfig) New(ctx context.Context) (manager.Manager, error) {
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+
+	if err = mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
+		err = apiextensions.NewReconciler(ctx, mgr).SetupWithManager(mgr)
+		if err != nil {
+			return errors.Wrap(err, "unable to create controller controller CustomResourceReconciler")
+		}
+
+		apiextensions.RegisterSetup(schema.GroupKind{
+			Group: apiworkv1.GroupName,
+			Kind:  "ManifestWork",
+		}, func(ctx context.Context, mgr manager.Manager) {
+			c.ManifestInformerFactory.Start(ctx.Done())
+		})
+
+		return nil
+	})); err != nil {
+		setupLog.Error(err, "unable to set manifestwork informer factory")
+		os.Exit(1)
+	}
+
+	if err = webhooks.SetupPlacementPolicyWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "PlacementPolicy")
 		os.Exit(1)
 	}
 
@@ -194,8 +226,10 @@ func (c *OperatorConfig) New(ctx context.Context) (manager.Manager, error) {
 		c.InformerFactory.Apps().V1().PlacementPolicies(),
 		c.KubeInformerFactory.Core().V1().PersistentVolumeClaims(),
 		c.KubeInformerFactory.Apps().V1().ControllerRevisions(),
+		c.ManifestInformerFactory.Work().V1().ManifestWorks(),
 		c.KubeClient,
 		c.Client,
+		c.ocmClient,
 	)
 
 	c.KubeInformerFactory.Start(ctx.Done())

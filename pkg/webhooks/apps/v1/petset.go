@@ -25,6 +25,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -124,7 +125,7 @@ func (w *PetSetCustomWebhook) ValidateCreate(ctx context.Context, obj runtime.Ob
 	petsetlog.Info("validate create", "name", ps.Name)
 
 	// TODO(user): fill in your validation logic upon object creation.
-	return nil, nil
+	return nil, w.validatePlacementPolicy(ctx, ps)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
@@ -136,7 +137,7 @@ func (w *PetSetCustomWebhook) ValidateUpdate(ctx context.Context, old, newObj ru
 	petsetlog.Info("validate update", "name", ps.Name)
 
 	// TODO(user): fill in your validation logic upon object update.
-	return nil, nil
+	return nil, w.validatePlacementPolicy(ctx, ps)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
@@ -149,4 +150,45 @@ func (w *PetSetCustomWebhook) ValidateDelete(ctx context.Context, obj runtime.Ob
 
 	// TODO(user): fill in your validation logic upon object deletion.
 	return nil, nil
+}
+
+func (w *PetSetCustomWebhook) validatePlacementPolicy(ctx context.Context, set *api.PetSet) error {
+	if !set.Spec.Distributed || set.Spec.Replicas == nil {
+		return nil
+	}
+	if set.Spec.PodPlacementPolicy == nil {
+		return fmt.Errorf("no PodPlacementPolicy defined for Distributed PetSet %q/%q", set.Namespace, set.Name)
+	}
+	pp := &api.PlacementPolicy{}
+	err := w.DefaultClient.Get(ctx, types.NamespacedName{
+		Namespace: "",
+		Name:      set.Spec.PodPlacementPolicy.Name,
+	}, pp)
+	if err != nil {
+		return err
+	}
+	if pp.Spec.OCM == nil || pp.Spec.OCM.DistributionRules == nil {
+		return fmt.Errorf("expected an OCM cluster spec for distributed petset in the %v/%v: %v, but got none", api.GroupName, api.ResourceKindPlacementPolicy, pp.Name)
+	}
+	cSum := 0
+	m := make(map[int32]struct{})
+	for i := 0; i < len(pp.Spec.OCM.DistributionRules); i++ {
+		cSum += len(pp.Spec.OCM.DistributionRules[i].Replicas)
+		for _, replica := range pp.Spec.OCM.DistributionRules[i].Replicas {
+			m[replica] = struct{}{}
+		}
+	}
+	if cSum < int(*set.Spec.Replicas) {
+		return fmt.Errorf("expected at least %d replicas in the placementPolicy %v, but got totalReplicas = %d", set.Spec.Replicas, pp.Name, cSum)
+	}
+	missing := make([]int32, 0)
+	for i := 0; i < int(*set.Spec.Replicas); i++ {
+		if _, ok := m[int32(i)]; !ok {
+			missing = append(missing, int32(i))
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("missing replica index %v at placementpolicy: %v", missing, pp.Name)
+	}
+	return nil
 }
