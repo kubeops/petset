@@ -18,6 +18,7 @@ package petset
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 
@@ -607,6 +608,9 @@ func (ssc *defaultPetSetControl) updatePetSet(
 	for ord := getStartOrdinal(set); ord <= getEndOrdinal(set); ord++ {
 		replicaIdx := ord - getStartOrdinal(set)
 		if replicas[replicaIdx] == nil {
+			klog.Infof("Creating new pod %v %v %v, %v %v \n", replicaIdx,
+				currentSet.ObjectMeta.ResourceVersion, currentSet.ObjectMeta.ResourceVersion,
+				currentRevision.Name, updateRevision.Name)
 			vp, err := ssc.newVersionedPetSetPod(
 				currentSet,
 				updateSet,
@@ -753,6 +757,13 @@ func (ssc *defaultPetSetControl) newVersionedPetSetPod(currentSet, updateSet *ap
 		placementPolicy *api.PlacementPolicy
 		err             error
 	)
+	klog.Infof("nnnnnnnnnnnnnnnnnnnnn")
+	if currentSet == nil {
+		return nil, fmt.Errorf("currentSet cannot be nil")
+	}
+	if updateSet == nil {
+		return nil, fmt.Errorf("updatedSet cannot be nil")
+	}
 	if currentSet.Spec.UpdateStrategy.Type == apps.RollingUpdateStatefulSetStrategyType &&
 		(currentSet.Spec.UpdateStrategy.RollingUpdate == nil && ordinal < (getStartOrdinal(currentSet)+int(currentSet.Status.CurrentReplicas))) ||
 		(currentSet.Spec.UpdateStrategy.RollingUpdate != nil && ordinal < (getStartOrdinal(currentSet)+int(*currentSet.Spec.UpdateStrategy.RollingUpdate.Partition))) {
@@ -775,8 +786,12 @@ func (ssc *defaultPetSetControl) newVersionedPetSetPod(currentSet, updateSet *ap
 	if err != nil {
 		return nil, err
 	}
+
+	klog.Infof("pod list done %v", len(podList.Items))
 	pod := newPetSetPod(updateSet, placementPolicy, ordinal, podList)
 	setPodRevision(pod, updateRevision)
+	klog.Infof("pod = %v %v \n affinity=%v \n tolerations=%v spread=%v \n",
+		pod.Name, pod.Labels, pod.Spec.Affinity, pod.Spec.Tolerations, pod.Spec.TopologySpreadConstraints)
 	return pod, err
 }
 
