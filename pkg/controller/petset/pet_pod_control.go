@@ -407,12 +407,14 @@ func (spc *StatefulPodControl) createPersistentVolumeClaims(set *api.PetSet, pod
 		pvc, err := spc.objectMgr.GetClaim(claim.Namespace, claim.Name, set)
 		switch {
 		case apierrors.IsNotFound(err):
-			placementPolicy, err := spc.objectMgr.GetPlacementPolicy(set.Spec.PodPlacementPolicy.Name)
-			if err != nil && !apierrors.IsNotFound(err) {
-				errs = append(errs, err)
+			if set.Spec.Distributed {
+				placementPolicy, err := spc.objectMgr.GetPlacementPolicy(set.Spec.PodPlacementPolicy.Name)
+				if err != nil && !apierrors.IsNotFound(err) {
+					errs = append(errs, err)
+				}
+				ordinal, _ := strconv.Atoi(getOrdinalFromResource(claim.Name))
+				setOCMPlacementForPVC(set, ordinal, &claim, placementPolicy)
 			}
-			ordinal, _ := strconv.Atoi(getOrdinalFromResource(claim.Name))
-			setOCMPlacementForPVC(set, ordinal, &claim, placementPolicy)
 
 			err = spc.objectMgr.CreateClaim(&claim, set)
 			if err != nil && !apierrors.IsAlreadyExists(err) {

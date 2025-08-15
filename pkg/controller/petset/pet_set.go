@@ -658,29 +658,33 @@ func (ssc *PetSetController) syncPetSet(ctx context.Context, set *api.PetSet, po
 }
 
 func (ssc *PetSetController) handleFinalizerRemove(set *api.PetSet) error {
-	// TODO: cc@Arnob vai. should Delete all the Manifestworks
+	anno := set.ObjectMeta.Annotations
 
-	sel := set.Spec.Selector.DeepCopy()
-	// This role is added during manifestwork deletion
-	sel.MatchLabels[api.ManifestWorkRoleLabel] = api.RolePod
+	if anno == nil || anno[api.DeletionPolicyAnnotation] != api.DeletionPolicyOrphan {
+		sel := set.Spec.Selector.DeepCopy()
+		// This role is added during manifestwork deletion
+		// For now we are only deleting the pod manifests
+		// Deleting pvc support not added yet
+		sel.MatchLabels[api.ManifestWorkRoleLabel] = api.RolePod
 
-	selector, err := metav1.LabelSelectorAsSelector(sel)
-	if err != nil {
-		return err
-	}
-	mws, err := ssc.manifestLister.List(selector)
-	if err != nil {
-		return err
-	}
-	for _, mw := range mws {
-		err := ssc.ocmClient.WorkV1().ManifestWorks(mw.Namespace).Delete(context.TODO(), mw.Name, metav1.DeleteOptions{})
-		if err != nil && !errors.IsNotFound(err) {
+		selector, err := metav1.LabelSelectorAsSelector(sel)
+		if err != nil {
 			return err
+		}
+		mws, err := ssc.manifestLister.List(selector)
+		if err != nil {
+			return err
+		}
+		for _, mw := range mws {
+			err := ssc.ocmClient.WorkV1().ManifestWorks(mw.Namespace).Delete(context.TODO(), mw.Name, metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return err
+			}
 		}
 	}
 	setCopy := set.DeepCopy()
 	setCopy.ObjectMeta = core_util.RemoveFinalizer(setCopy.ObjectMeta, api.GroupName)
-	_, err = ssc.apiClient.AppsV1().PetSets(set.Namespace).Update(context.TODO(), setCopy, metav1.UpdateOptions{})
+	_, err := ssc.apiClient.AppsV1().PetSets(set.Namespace).Update(context.TODO(), setCopy, metav1.UpdateOptions{})
 	return err
 }
 
