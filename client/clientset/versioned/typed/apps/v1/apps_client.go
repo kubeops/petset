@@ -21,9 +21,10 @@ package v1
 import (
 	"net/http"
 
-	rest "k8s.io/client-go/rest"
 	v1 "kubeops.dev/petset/apis/apps/v1"
 	"kubeops.dev/petset/client/clientset/versioned/scheme"
+
+	rest "k8s.io/client-go/rest"
 )
 
 type AppsV1Interface interface {
