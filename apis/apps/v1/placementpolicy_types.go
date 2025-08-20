@@ -91,8 +91,8 @@ type DistributionRule struct {
 }
 
 type KubeSliceConfig struct {
-	ProjectName string `json:"projectName"`
-	SliceName   string `json:"sliceName"`
+	ProjectNamespace string `json:"projectNamespace"`
+	SliceName        string `json:"sliceName"`
 }
 
 type ZoneSpreadConstraint struct {

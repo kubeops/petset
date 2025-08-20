@@ -22,13 +22,12 @@ import (
 	"context"
 	"time"
 
-	v1 "kubeops.dev/petset/apis/apps/v1"
-	scheme "kubeops.dev/petset/client/clientset/versioned/scheme"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	rest "k8s.io/client-go/rest"
+	v1 "kubeops.dev/petset/apis/apps/v1"
+	scheme "kubeops.dev/petset/client/clientset/versioned/scheme"
 )
 
 // PlacementPoliciesGetter has a method to return a PlacementPolicyInterface.

@@ -108,12 +108,12 @@ spec:
                     type: array
                   slice:
                     properties:
-                      projectName:
+                      projectNamespace:
                         type: string
                       sliceName:
                         type: string
                     required:
-                    - projectName
+                    - projectNamespace
                     - sliceName
                     type: object
                 required:

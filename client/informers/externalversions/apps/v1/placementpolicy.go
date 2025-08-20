@@ -22,15 +22,14 @@ import (
 	"context"
 	time "time"
 
-	appsv1 "kubeops.dev/petset/apis/apps/v1"
-	versioned "kubeops.dev/petset/client/clientset/versioned"
-	internalinterfaces "kubeops.dev/petset/client/informers/externalversions/internalinterfaces"
-	v1 "kubeops.dev/petset/client/listers/apps/v1"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
+	appsv1 "kubeops.dev/petset/apis/apps/v1"
+	versioned "kubeops.dev/petset/client/clientset/versioned"
+	internalinterfaces "kubeops.dev/petset/client/informers/externalversions/internalinterfaces"
+	v1 "kubeops.dev/petset/client/listers/apps/v1"
 )
 
 // PlacementPolicyInformer provides access to a shared informer and lister for

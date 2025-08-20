@@ -387,7 +387,7 @@ func (om *realStatefulPodControlObjectManager) getOcmClusterName(ppName string, 
 	if err != nil {
 		return "", err
 	}
-	if pp == nil || pp.Spec.OCM == nil || pp.Spec.OCM.DistributionRules == nil {
+	if pp == nil || pp.Spec.ClusterSpreadConstraint == nil || pp.Spec.ClusterSpreadConstraint.DistributionRules == nil {
 		klog.Errorf("no OCM cluster spec found in pod placement policy")
 		return "", nil
 	}
@@ -471,14 +471,14 @@ func ListPodsFromManifestWork(manifestLister manifestlisters.ManifestWorkLister,
 
 func getOcmClusterName(pp *api.PlacementPolicy, ordinal int) string {
 	clusterName := ""
-	if pp == nil || pp.Spec.OCM == nil || pp.Spec.OCM.DistributionRules == nil {
+	if pp == nil || pp.Spec.ClusterSpreadConstraint == nil || pp.Spec.ClusterSpreadConstraint.DistributionRules == nil {
 		klog.Errorf("no OCM cluster spec found in placement policy")
 		return ""
 	}
-	for i := 0; i < len(pp.Spec.OCM.DistributionRules); i++ {
-		for j := 0; j < len(pp.Spec.OCM.DistributionRules[i].Replicas); j++ {
-			if ordinal == int(pp.Spec.OCM.DistributionRules[i].Replicas[j]) {
-				clusterName = pp.Spec.OCM.DistributionRules[i].ClusterName
+	for i := 0; i < len(pp.Spec.ClusterSpreadConstraint.DistributionRules); i++ {
+		for j := 0; j < len(pp.Spec.ClusterSpreadConstraint.DistributionRules[i].ReplicaIndices); j++ {
+			if ordinal == int(pp.Spec.ClusterSpreadConstraint.DistributionRules[i].ReplicaIndices[j]) {
+				clusterName = pp.Spec.ClusterSpreadConstraint.DistributionRules[i].ClusterName
 				return clusterName
 			}
 		}

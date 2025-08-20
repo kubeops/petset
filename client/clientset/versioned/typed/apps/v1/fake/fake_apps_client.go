@@ -19,10 +19,9 @@ limitations under the License.
 package fake
 
 import (
-	v1 "kubeops.dev/petset/client/clientset/versioned/typed/apps/v1"
-
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
+	v1 "kubeops.dev/petset/client/clientset/versioned/typed/apps/v1"
 )
 
 type FakeAppsV1 struct {
