@@ -103,6 +103,20 @@ func (om *realStatefulPodControlObjectManager) CreatePodManifestWork(ctx context
 							},
 						},
 					},
+					UpdateStrategy: &apiworkv1.UpdateStrategy{
+						Type: apiworkv1.UpdateStrategyTypeServerSideApply,
+						ServerSideApply: &apiworkv1.ServerSideApplyConfig{
+							Force: true,
+							IgnoreFields: []apiworkv1.IgnoreField{
+								{
+									Condition: apiworkv1.IgnoreFieldsConditionOnSpokePresent,
+									JSONPaths: []string{
+										"$.metadata.labels",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -311,6 +325,31 @@ func (om *realStatefulPodControlObjectManager) CreateClaimManifestWork(set *api.
 					{
 						RawExtension: runtime.RawExtension{
 							Object: &unstructured.Unstructured{Object: claimUnstructured},
+						},
+					},
+				},
+			},
+			ManifestConfigs: []apiworkv1.ManifestConfigOption{
+				{
+					ResourceIdentifier: apiworkv1.ResourceIdentifier{
+						Group:     "",
+						Resource:  "persistentvolumeclaims",
+						Name:      claim.Name,
+						Namespace: claim.Namespace,
+					},
+					UpdateStrategy: &apiworkv1.UpdateStrategy{
+						Type: apiworkv1.UpdateStrategyTypeServerSideApply,
+						ServerSideApply: &apiworkv1.ServerSideApplyConfig{
+							Force: true,
+							IgnoreFields: []apiworkv1.IgnoreField{
+								{
+									Condition: apiworkv1.IgnoreFieldsConditionOnSpokePresent,
+									JSONPaths: []string{
+										"$.spec.volumeName",
+										"$.spec.storageClassName",
+									},
+								},
+							},
 						},
 					},
 				},
