@@ -477,14 +477,14 @@ func newPetSetPod(set *api.PetSet, placementPolicy *api.PlacementPolicy, ordinal
 }
 
 func setOCMPlacement(set *api.PetSet, ordinal int, pod *v1.Pod, pp *api.PlacementPolicy) {
-	if pp == nil || pp.Spec.OCM == nil || pp.Spec.OCM.DistributionRules == nil {
+	if pp == nil || pp.Spec.ClusterSpreadConstraint == nil || pp.Spec.ClusterSpreadConstraint.DistributionRules == nil {
 		return
 	}
 	clusterName := ""
-	for i := 0; i < len(pp.Spec.OCM.DistributionRules); i++ {
-		for j := 0; j < len(pp.Spec.OCM.DistributionRules[i].Replicas); j++ {
-			if ordinal == int(pp.Spec.OCM.DistributionRules[i].Replicas[j]) {
-				clusterName = pp.Spec.OCM.DistributionRules[i].ClusterName
+	for i := 0; i < len(pp.Spec.ClusterSpreadConstraint.DistributionRules); i++ {
+		for j := 0; j < len(pp.Spec.ClusterSpreadConstraint.DistributionRules[i].ReplicaIndices); j++ {
+			if ordinal == int(pp.Spec.ClusterSpreadConstraint.DistributionRules[i].ReplicaIndices[j]) {
+				clusterName = pp.Spec.ClusterSpreadConstraint.DistributionRules[i].ClusterName
 				break
 			}
 		}
@@ -502,7 +502,7 @@ func setOCMPlacement(set *api.PetSet, ordinal int, pod *v1.Pod, pp *api.Placemen
 }
 
 func setOCMPlacementForPVC(set *api.PetSet, ordinal int, pvc *v1.PersistentVolumeClaim, placementPolicy *api.PlacementPolicy) {
-	if placementPolicy == nil || placementPolicy.Spec.OCM == nil || placementPolicy.Spec.OCM.DistributionRules == nil {
+	if placementPolicy == nil || placementPolicy.Spec.ClusterSpreadConstraint == nil || placementPolicy.Spec.ClusterSpreadConstraint.DistributionRules == nil {
 		return
 	}
 	clusterName := getOcmClusterName(placementPolicy, ordinal)
