@@ -413,7 +413,8 @@ func (spc *StatefulPodControl) createPersistentVolumeClaims(set *api.PetSet, pod
 					errs = append(errs, err)
 				}
 				ordinal, _ := strconv.Atoi(getOrdinalFromResource(claim.Name))
-				setOCMPlacementForPVC(set, ordinal, &claim, placementPolicy)
+				setOCMPlacementForPVC(ordinal, &claim, placementPolicy)
+				setStorageClassNameForPVC(ordinal, &claim, placementPolicy)
 			}
 
 			err = spc.objectMgr.CreateClaim(&claim, set)

@@ -501,7 +501,7 @@ func setOCMPlacement(set *api.PetSet, ordinal int, pod *v1.Pod, pp *api.Placemen
 	}
 }
 
-func setOCMPlacementForPVC(set *api.PetSet, ordinal int, pvc *v1.PersistentVolumeClaim, placementPolicy *api.PlacementPolicy) {
+func setOCMPlacementForPVC(ordinal int, pvc *v1.PersistentVolumeClaim, placementPolicy *api.PlacementPolicy) {
 	if placementPolicy == nil || placementPolicy.Spec.ClusterSpreadConstraint == nil || placementPolicy.Spec.ClusterSpreadConstraint.DistributionRules == nil {
 		return
 	}
@@ -510,6 +510,17 @@ func setOCMPlacementForPVC(set *api.PetSet, ordinal int, pvc *v1.PersistentVolum
 		pvc.Annotations = make(map[string]string)
 	}
 	pvc.Annotations[api.ManifestWorkClusterNameLabel] = clusterName
+}
+
+func setStorageClassNameForPVC(ordinal int, pvc *v1.PersistentVolumeClaim, placementPolicy *api.PlacementPolicy) {
+	if placementPolicy == nil || placementPolicy.Spec.ClusterSpreadConstraint == nil || placementPolicy.Spec.ClusterSpreadConstraint.DistributionRules == nil {
+		return
+	}
+	storageClassName := getStorageClassName(placementPolicy, ordinal)
+	if storageClassName != "" {
+		// overwrite the storageClassName only when it's set in placementPolicy
+		pvc.Spec.StorageClassName = &storageClassName
+	}
 }
 
 // getPatch returns a strategic merge patch that can be applied to restore a PetSet to a

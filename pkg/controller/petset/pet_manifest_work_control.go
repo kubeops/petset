@@ -46,6 +46,7 @@ func (om *realStatefulPodControlObjectManager) CreatePodManifestWork(ctx context
 	pod.APIVersion = "v1"
 	pod.Kind = "Pod"
 	pod.ObjectMeta.GenerateName = ""
+	pod.ObjectMeta.OwnerReferences = nil
 	podUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(pod)
 	if err != nil {
 		return fmt.Errorf("failed to convert pod to unstructured: %w", err)
@@ -337,6 +338,17 @@ func (om *realStatefulPodControlObjectManager) CreateClaimManifestWork(set *api.
 						Name:      claim.Name,
 						Namespace: claim.Namespace,
 					},
+					FeedbackRules: []apiworkv1.FeedbackRule{
+						{
+							Type: apiworkv1.JSONPathsType,
+							JsonPaths: []apiworkv1.JsonPath{
+								{
+									Name: "Capacity",
+									Path: ".status.capacity.storage",
+								},
+							},
+						},
+					},
 					UpdateStrategy: &apiworkv1.UpdateStrategy{
 						Type: apiworkv1.UpdateStrategyTypeServerSideApply,
 						ServerSideApply: &apiworkv1.ServerSideApplyConfig{
@@ -524,4 +536,20 @@ func getOcmClusterName(pp *api.PlacementPolicy, ordinal int) string {
 	}
 
 	return clusterName
+}
+
+func getStorageClassName(pp *api.PlacementPolicy, ordinal int) string {
+	if pp == nil || pp.Spec.ClusterSpreadConstraint == nil || pp.Spec.ClusterSpreadConstraint.DistributionRules == nil {
+		klog.Errorf("can't get storageClassName for distributed petset, ClusterSpreadConstraint is nil")
+		return ""
+	}
+	for i := 0; i < len(pp.Spec.ClusterSpreadConstraint.DistributionRules); i++ {
+		for j := 0; j < len(pp.Spec.ClusterSpreadConstraint.DistributionRules[i].ReplicaIndices); j++ {
+			if ordinal == int(pp.Spec.ClusterSpreadConstraint.DistributionRules[i].ReplicaIndices[j]) {
+				return pp.Spec.ClusterSpreadConstraint.DistributionRules[i].StorageClassName
+			}
+		}
+	}
+
+	return ""
 }
