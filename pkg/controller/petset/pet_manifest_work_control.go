@@ -46,6 +46,7 @@ func (om *realStatefulPodControlObjectManager) CreatePodManifestWork(ctx context
 	pod.APIVersion = "v1"
 	pod.Kind = "Pod"
 	pod.ObjectMeta.GenerateName = ""
+	pod.ObjectMeta.OwnerReferences = nil
 	podUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(pod)
 	if err != nil {
 		return fmt.Errorf("failed to convert pod to unstructured: %w", err)
@@ -99,6 +100,20 @@ func (om *realStatefulPodControlObjectManager) CreatePodManifestWork(ctx context
 								{
 									Name: "PodRoleLabel",
 									Path: ".metadata.labels.kubedb-role",
+								},
+							},
+						},
+					},
+					UpdateStrategy: &apiworkv1.UpdateStrategy{
+						Type: apiworkv1.UpdateStrategyTypeServerSideApply,
+						ServerSideApply: &apiworkv1.ServerSideApplyConfig{
+							Force: true,
+							IgnoreFields: []apiworkv1.IgnoreField{
+								{
+									Condition: apiworkv1.IgnoreFieldsConditionOnSpokePresent,
+									JSONPaths: []string{
+										"$.metadata.labels",
+									},
 								},
 							},
 						},
@@ -315,6 +330,42 @@ func (om *realStatefulPodControlObjectManager) CreateClaimManifestWork(set *api.
 					},
 				},
 			},
+			ManifestConfigs: []apiworkv1.ManifestConfigOption{
+				{
+					ResourceIdentifier: apiworkv1.ResourceIdentifier{
+						Group:     "",
+						Resource:  "persistentvolumeclaims",
+						Name:      claim.Name,
+						Namespace: claim.Namespace,
+					},
+					FeedbackRules: []apiworkv1.FeedbackRule{
+						{
+							Type: apiworkv1.JSONPathsType,
+							JsonPaths: []apiworkv1.JsonPath{
+								{
+									Name: "Capacity",
+									Path: ".status.capacity.storage",
+								},
+							},
+						},
+					},
+					UpdateStrategy: &apiworkv1.UpdateStrategy{
+						Type: apiworkv1.UpdateStrategyTypeServerSideApply,
+						ServerSideApply: &apiworkv1.ServerSideApplyConfig{
+							Force: true,
+							IgnoreFields: []apiworkv1.IgnoreField{
+								{
+									Condition: apiworkv1.IgnoreFieldsConditionOnSpokePresent,
+									JSONPaths: []string{
+										"$.spec.volumeName",
+										"$.spec.storageClassName",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 
@@ -387,7 +438,7 @@ func (om *realStatefulPodControlObjectManager) getOcmClusterName(ppName string, 
 	if err != nil {
 		return "", err
 	}
-	if pp == nil || pp.Spec.OCM == nil || pp.Spec.OCM.DistributionRules == nil {
+	if pp == nil || pp.Spec.ClusterSpreadConstraint == nil || pp.Spec.ClusterSpreadConstraint.DistributionRules == nil {
 		klog.Errorf("no OCM cluster spec found in pod placement policy")
 		return "", nil
 	}
@@ -471,18 +522,34 @@ func ListPodsFromManifestWork(manifestLister manifestlisters.ManifestWorkLister,
 
 func getOcmClusterName(pp *api.PlacementPolicy, ordinal int) string {
 	clusterName := ""
-	if pp == nil || pp.Spec.OCM == nil || pp.Spec.OCM.DistributionRules == nil {
+	if pp == nil || pp.Spec.ClusterSpreadConstraint == nil || pp.Spec.ClusterSpreadConstraint.DistributionRules == nil {
 		klog.Errorf("no OCM cluster spec found in placement policy")
 		return ""
 	}
-	for i := 0; i < len(pp.Spec.OCM.DistributionRules); i++ {
-		for j := 0; j < len(pp.Spec.OCM.DistributionRules[i].Replicas); j++ {
-			if ordinal == int(pp.Spec.OCM.DistributionRules[i].Replicas[j]) {
-				clusterName = pp.Spec.OCM.DistributionRules[i].ClusterName
+	for i := 0; i < len(pp.Spec.ClusterSpreadConstraint.DistributionRules); i++ {
+		for j := 0; j < len(pp.Spec.ClusterSpreadConstraint.DistributionRules[i].ReplicaIndices); j++ {
+			if ordinal == int(pp.Spec.ClusterSpreadConstraint.DistributionRules[i].ReplicaIndices[j]) {
+				clusterName = pp.Spec.ClusterSpreadConstraint.DistributionRules[i].ClusterName
 				return clusterName
 			}
 		}
 	}
 
 	return clusterName
+}
+
+func getStorageClassName(pp *api.PlacementPolicy, ordinal int) string {
+	if pp == nil || pp.Spec.ClusterSpreadConstraint == nil || pp.Spec.ClusterSpreadConstraint.DistributionRules == nil {
+		klog.Errorf("can't get storageClassName for distributed petset, ClusterSpreadConstraint is nil")
+		return ""
+	}
+	for i := 0; i < len(pp.Spec.ClusterSpreadConstraint.DistributionRules); i++ {
+		for j := 0; j < len(pp.Spec.ClusterSpreadConstraint.DistributionRules[i].ReplicaIndices); j++ {
+			if ordinal == int(pp.Spec.ClusterSpreadConstraint.DistributionRules[i].ReplicaIndices[j]) {
+				return pp.Spec.ClusterSpreadConstraint.DistributionRules[i].StorageClassName
+			}
+		}
+	}
+
+	return ""
 }

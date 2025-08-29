@@ -1,8 +1,8 @@
 # cel.dev/expr v0.18.0
 ## explicit; go 1.21.1
 cel.dev/expr
-# cloud.google.com/go v0.46.3
-## explicit; go 1.9
+# cloud.google.com/go/compute/metadata v0.6.0
+## explicit; go 1.21
 cloud.google.com/go/compute/metadata
 # github.com/Azure/azure-sdk-for-go v68.0.0+incompatible
 ## explicit
@@ -234,9 +234,13 @@ github.com/fxamacker/cbor/v2
 ## explicit; go 1.18
 github.com/go-logr/logr
 github.com/go-logr/logr/funcr
+github.com/go-logr/logr/slogr
 # github.com/go-logr/stdr v1.2.2
 ## explicit; go 1.16
 github.com/go-logr/stdr
+# github.com/go-logr/zapr v1.3.0
+## explicit; go 1.18
+github.com/go-logr/zapr
 # github.com/go-openapi/jsonpointer v0.21.0
 ## explicit; go 1.20
 github.com/go-openapi/jsonpointer
@@ -256,6 +260,9 @@ github.com/gogo/protobuf/sortkeys
 # github.com/golang-jwt/jwt/v4 v4.5.1
 ## explicit; go 1.16
 github.com/golang-jwt/jwt/v4
+# github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8
+## explicit; go 1.20
+github.com/golang/groupcache/lru
 # github.com/golang/protobuf v1.5.4
 ## explicit; go 1.17
 github.com/golang/protobuf/proto
@@ -353,6 +360,8 @@ github.com/grpc-ecosystem/go-grpc-prometheus
 github.com/grpc-ecosystem/grpc-gateway/v2/internal/httprule
 github.com/grpc-ecosystem/grpc-gateway/v2/runtime
 github.com/grpc-ecosystem/grpc-gateway/v2/utilities
+# github.com/imdario/mergo v0.3.16 => github.com/imdario/mergo v0.3.6
+## explicit
 # github.com/inconshreveable/mousetrap v1.1.0
 ## explicit; go 1.18
 github.com/inconshreveable/mousetrap
@@ -371,9 +380,20 @@ github.com/klauspost/compress/internal/cpuinfo
 github.com/klauspost/compress/internal/snapref
 github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
-# github.com/klauspost/cpuid/v2 v2.0.9
-## explicit; go 1.13
+# github.com/klauspost/cpuid/v2 v2.2.5
+## explicit; go 1.15
 github.com/klauspost/cpuid/v2
+# github.com/kubeslice/apis v0.3.0
+## explicit; go 1.16
+# github.com/kubeslice/kubeslice-controller v1.8.2 => github.com/kube-slice/kubeslice-controller v1.8.3-0.20250707180130-733b0dc20fe2
+## explicit; go 1.24.0
+github.com/kubeslice/kubeslice-controller/apis/controller/v1alpha1
+github.com/kubeslice/kubeslice-controller/events
+github.com/kubeslice/kubeslice-controller/util
+# github.com/kubeslice/kubeslice-monitoring v0.2.2
+## explicit; go 1.19
+github.com/kubeslice/kubeslice-monitoring/pkg/events
+github.com/kubeslice/kubeslice-monitoring/pkg/logger
 # github.com/kylelemons/godebug v1.1.0
 ## explicit; go 1.11
 github.com/kylelemons/godebug/diff
@@ -582,7 +602,7 @@ go.uber.org/zap/internal/pool
 go.uber.org/zap/internal/stacktrace
 go.uber.org/zap/zapcore
 go.uber.org/zap/zapgrpc
-# golang.org/x/crypto v0.35.0
+# golang.org/x/crypto v0.36.0
 ## explicit; go 1.23.0
 golang.org/x/crypto/cryptobyte
 golang.org/x/crypto/cryptobyte/asn1
@@ -592,7 +612,7 @@ golang.org/x/crypto/pkcs12/internal/rc2
 ## explicit; go 1.20
 golang.org/x/exp/constraints
 golang.org/x/exp/slices
-# golang.org/x/net v0.36.0
+# golang.org/x/net v0.38.0
 ## explicit; go 1.23.0
 golang.org/x/net/context
 golang.org/x/net/html
@@ -619,21 +639,21 @@ golang.org/x/oauth2/google/internal/stsexchange
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
-# golang.org/x/sync v0.11.0
-## explicit; go 1.18
+# golang.org/x/sync v0.12.0
+## explicit; go 1.23.0
 golang.org/x/sync/errgroup
 golang.org/x/sync/singleflight
-# golang.org/x/sys v0.30.0
-## explicit; go 1.18
+# golang.org/x/sys v0.31.0
+## explicit; go 1.23.0
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry
-# golang.org/x/term v0.29.0
-## explicit; go 1.18
+# golang.org/x/term v0.30.0
+## explicit; go 1.23.0
 golang.org/x/term
-# golang.org/x/text v0.22.0
-## explicit; go 1.18
+# golang.org/x/text v0.23.0
+## explicit; go 1.23.0
 golang.org/x/text/encoding
 golang.org/x/text/encoding/charmap
 golang.org/x/text/encoding/htmlindex
@@ -814,6 +834,8 @@ gopkg.in/inf.v0
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
+# gotest.tools/v3 v3.5.1
+## explicit; go 1.17
 # k8s.io/api v0.32.2
 ## explicit; go 1.23.0
 k8s.io/api/admission/v1
@@ -1560,7 +1582,7 @@ sigs.k8s.io/apiserver-network-proxy/konnectivity-client/pkg/client
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client/pkg/client/metrics
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client/pkg/common/metrics
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client/proto/client
-# sigs.k8s.io/controller-runtime v0.20.3 => github.com/kmodules/controller-runtime v0.20.3-0.20250221050548-8eabe54e7dda
+# sigs.k8s.io/controller-runtime v0.20.4 => github.com/kmodules/controller-runtime v0.20.3-0.20250221050548-8eabe54e7dda
 ## explicit; go 1.23.0
 sigs.k8s.io/controller-runtime
 sigs.k8s.io/controller-runtime/pkg/builder
@@ -1625,3 +1647,4 @@ sigs.k8s.io/yaml/goyaml.v2
 # sigs.k8s.io/controller-runtime => github.com/kmodules/controller-runtime v0.20.3-0.20250221050548-8eabe54e7dda
 # github.com/imdario/mergo => github.com/imdario/mergo v0.3.6
 # k8s.io/apiserver => github.com/kmodules/apiserver v0.32.3-0.20250221062720-35dc674c7dd6
+# github.com/kubeslice/kubeslice-controller => github.com/kube-slice/kubeslice-controller v1.8.3-0.20250707180130-733b0dc20fe2

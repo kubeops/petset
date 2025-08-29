@@ -26,6 +26,7 @@ import (
 	apiinformers "kubeops.dev/petset/client/informers/externalversions"
 	"kubeops.dev/petset/pkg/features"
 
+	kubesliceapi "github.com/kubeslice/kubeslice-controller/apis/controller/v1alpha1"
 	"github.com/spf13/pflag"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -46,6 +47,7 @@ func init() {
 	utilruntime.Must(apiworkv1.AddToScheme(Scheme))
 	utilruntime.Must(api.AddToScheme(Scheme))
 	utilruntime.Must(apiextensionsv1.AddToScheme(Scheme))
+	utilruntime.Must(kubesliceapi.AddToScheme(Scheme))
 }
 
 type OperatorOptions struct {

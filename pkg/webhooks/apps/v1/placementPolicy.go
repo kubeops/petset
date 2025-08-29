@@ -23,7 +23,10 @@ import (
 
 	api "kubeops.dev/petset/apis/apps/v1"
 
+	kubesliceapi "github.com/kubeslice/kubeslice-controller/apis/controller/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -63,30 +66,34 @@ var _ webhook.CustomValidator = &PlacementPolicyCustomWebhook{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (w *PlacementPolicyCustomWebhook) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	ps, ok := obj.(*api.PlacementPolicy)
+	pp, ok := obj.(*api.PlacementPolicy)
 	if !ok {
-		return nil, fmt.Errorf("expected an PlacementPolicy object but got %T", obj)
+		return nil, fmt.Errorf("expected a PlacementPolicy object but got %T", obj)
 	}
-	pplog.Info("validate create", "name", ps.Name)
+	pplog.Info("validate create", "name", pp.Name)
 
-	// TODO(user): fill in your validation logic upon object creation.
-	return nil, w.validateCreatePlacementPolicy(ps)
+	if err := w.validateCreatePlacementPolicy(pp); err != nil {
+		return nil, err
+	}
+	return nil, w.validateSliceClusters(ctx, pp)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (w *PlacementPolicyCustomWebhook) ValidateUpdate(ctx context.Context, old, newObj runtime.Object) (admission.Warnings, error) {
-	pp, ok := newObj.(*api.PlacementPolicy)
+	newPP, ok := newObj.(*api.PlacementPolicy)
 	if !ok {
-		return nil, fmt.Errorf("expected an PlacementPolicy object but got %T", newObj)
+		return nil, fmt.Errorf("expected a new PlacementPolicy object but got %T", newObj)
 	}
 	oldPP, ok := old.(*api.PlacementPolicy)
 	if !ok {
-		return nil, fmt.Errorf("expected an PlacementPolicy object but got %T", oldPP)
+		return nil, fmt.Errorf("expected an old PlacementPolicy object but got %T", old)
 	}
-	pplog.Info("validate update", "name", pp.Name)
+	pplog.Info("validate update", "name", newPP.Name)
 
-	// TODO(user): fill in your validation logic upon object update.
-	return nil, w.validateUpdatePlacementPolicy(ctx, oldPP, pp)
+	if err := w.validateUpdatePlacementPolicy(ctx, oldPP, newPP); err != nil {
+		return nil, err
+	}
+	return nil, w.validateSliceClusters(ctx, newPP)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
@@ -102,10 +109,10 @@ func (w *PlacementPolicyCustomWebhook) ValidateDelete(ctx context.Context, obj r
 }
 
 func (w *PlacementPolicyCustomWebhook) validateCreatePlacementPolicy(pp *api.PlacementPolicy) error {
-	if pp.Spec.OCM == nil || pp.Spec.OCM.DistributionRules == nil {
+	if pp.Spec.ClusterSpreadConstraint == nil || pp.Spec.ClusterSpreadConstraint.DistributionRules == nil {
 		return nil
 	}
-	allReplicas := flattenReplicas(pp.Spec.OCM.DistributionRules)
+	allReplicas := flattenReplicas(pp.Spec.ClusterSpreadConstraint.DistributionRules)
 	sort.Slice(allReplicas, func(i, j int) bool {
 		return allReplicas[i] < allReplicas[j]
 	})
@@ -119,7 +126,7 @@ func (w *PlacementPolicyCustomWebhook) validateCreatePlacementPolicy(pp *api.Pla
 }
 
 func (w *PlacementPolicyCustomWebhook) validateUpdatePlacementPolicy(_ context.Context, oldPP *api.PlacementPolicy, newPP *api.PlacementPolicy) error {
-	if oldPP.Spec.OCM == nil || newPP.Spec.OCM == nil {
+	if oldPP.Spec.ClusterSpreadConstraint == nil || newPP.Spec.ClusterSpreadConstraint == nil {
 		return nil
 	}
 
@@ -127,8 +134,8 @@ func (w *PlacementPolicyCustomWebhook) validateUpdatePlacementPolicy(_ context.C
 		return err
 	}
 
-	oldMap := buildReplicaClusterMap(oldPP.Spec.OCM.DistributionRules)
-	newMap := buildReplicaClusterMap(newPP.Spec.OCM.DistributionRules)
+	oldMap := buildReplicaClusterMap(oldPP.Spec.ClusterSpreadConstraint.DistributionRules)
+	newMap := buildReplicaClusterMap(newPP.Spec.ClusterSpreadConstraint.DistributionRules)
 
 	commonLen := min(len(oldMap), len(newMap))
 
@@ -141,11 +148,38 @@ func (w *PlacementPolicyCustomWebhook) validateUpdatePlacementPolicy(_ context.C
 	return nil
 }
 
+// validateSliceClusters checks that all clusters in the PlacementPolicy are part of the specified KubeSlice SliceConfig.
+func (w *PlacementPolicyCustomWebhook) validateSliceClusters(ctx context.Context, pp *api.PlacementPolicy) error {
+	if pp.Spec.ClusterSpreadConstraint == nil {
+		return nil
+	}
+	constraint := pp.Spec.ClusterSpreadConstraint
+
+	sliceConfig := &kubesliceapi.SliceConfig{}
+	err := w.DefaultClient.Get(ctx, types.NamespacedName{
+		Name:      constraint.Slice.SliceName,
+		Namespace: constraint.Slice.ProjectNamespace,
+	}, sliceConfig)
+	if err != nil {
+		return fmt.Errorf("failed to get SliceConfig '%s' in project namespace '%s': %w", constraint.Slice.SliceName, constraint.Slice.ProjectNamespace, err)
+	}
+
+	onboardedClusters := sets.NewString(sliceConfig.Spec.Clusters...)
+
+	for _, rule := range constraint.DistributionRules {
+		if !onboardedClusters.Has(rule.ClusterName) {
+			return fmt.Errorf("cluster '%s' specified in PlacementPolicy is not onboarded to slice '%s' in project '%s'", rule.ClusterName, constraint.Slice.SliceName, constraint.Slice.ProjectNamespace)
+		}
+	}
+
+	return nil
+}
+
 // flattenReplicas takes the cluster spec and returns a single slice of all replica indices.
 func flattenReplicas(rules []api.DistributionRule) []int32 {
 	var allReplicas []int32
 	for _, cluster := range rules {
-		allReplicas = append(allReplicas, cluster.Replicas...)
+		allReplicas = append(allReplicas, cluster.ReplicaIndices...)
 	}
 	return allReplicas
 }
@@ -154,7 +188,7 @@ func flattenReplicas(rules []api.DistributionRule) []int32 {
 func buildReplicaClusterMap(rules []api.DistributionRule) map[int32]string {
 	replicaMap := make(map[int32]string)
 	for _, cluster := range rules {
-		for _, replica := range cluster.Replicas {
+		for _, replica := range cluster.ReplicaIndices {
 			replicaMap[replica] = cluster.ClusterName
 		}
 	}
