@@ -83,6 +83,11 @@ func (in *DistributionRule) DeepCopyInto(out *DistributionRule) {
 		*out = make([]int32, len(*in))
 		copy(*out, *in)
 	}
+	if in.PrometheusSecret != nil {
+		in, out := &in.PrometheusSecret, &out.PrometheusSecret
+		*out = new(corev1.LocalObjectReference)
+		**out = **in
+	}
 	return
 }
 
