@@ -96,6 +96,8 @@ spec:
                       properties:
                         clusterName:
                           type: string
+                        prometheusSecretName:
+                          type: string
                         replicaIndices:
                           items:
                             format: int32

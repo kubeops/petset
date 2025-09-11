@@ -86,9 +86,10 @@ type ClusterSpreadConstraint struct {
 }
 
 type DistributionRule struct {
-	ClusterName      string  `json:"clusterName"`
-	ReplicaIndices   []int32 `json:"replicaIndices"`
-	StorageClassName string  `json:"storageClassName,omitempty"`
+	ClusterName          string  `json:"clusterName"`
+	ReplicaIndices       []int32 `json:"replicaIndices"`
+	StorageClassName     string  `json:"storageClassName,omitempty"`
+	PrometheusSecretName string  `json:"prometheusSecretName,omitempty"`
 }
 
 type KubeSliceConfig struct {
