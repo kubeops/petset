@@ -29,6 +29,7 @@ import (
 	podutil "kubeops.dev/petset/pkg/api/v1/pod"
 	"kubeops.dev/petset/pkg/controller"
 	"kubeops.dev/petset/pkg/controller/history"
+	webhooks "kubeops.dev/petset/pkg/webhooks/apps/v1"
 
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -609,6 +610,32 @@ func (ssc *PetSetController) sync(ctx context.Context, key string) error {
 		utilruntime.HandleError(fmt.Errorf("unable to retrieve PetSet %v from store: %v", key, err))
 		return err
 	}
+
+	// Apply defaults to prevent nil pointer panics (e.g., in truncateHistory)
+	// This ensures defaults are applied even if webhook is not configured or fails
+	setNeedsUpdate := false
+	if set.Spec.RevisionHistoryLimit == nil {
+		setNeedsUpdate = true
+	}
+	if set.Spec.Replicas == nil {
+		setNeedsUpdate = true
+	}
+
+	if setNeedsUpdate {
+		// Create a deep copy to avoid modifying the cache
+		set = set.DeepCopy()
+		webhooks.ApplyDefaults(set)
+
+		// Update the PetSet with defaults
+		updatedSet, err := ssc.apiClient.AppsV1().PetSets(set.Namespace).Update(ctx, set, metav1.UpdateOptions{})
+		if err != nil {
+			logger.Error(err, "Failed to apply defaults to PetSet", "petset", klog.KObj(set))
+			return err
+		}
+		logger.Info("Applied defaults to PetSet", "petset", klog.KObj(set))
+		set = updatedSet
+	}
+
 	if set.Spec.Distributed {
 		rq, err := ssc.handleDistributedPetset(ctx, set)
 		if rq {

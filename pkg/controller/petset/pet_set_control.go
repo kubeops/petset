@@ -203,6 +203,13 @@ func (ssc *defaultPetSetControl) truncateHistory(
 		}
 	}
 	historyLen := len(history)
+	// Safety check: if RevisionHistoryLimit is nil, default to 10
+	// This should never happen if webhook/controller defaults are working properly
+	if set.Spec.RevisionHistoryLimit == nil {
+		klog.Warning("RevisionHistoryLimit is nil for PetSet %s/%s, defaulting to 10", set.Namespace, set.Name)
+		historyLimit := int32(10)
+		set.Spec.RevisionHistoryLimit = &historyLimit
+	}
 	historyLimit := int(*set.Spec.RevisionHistoryLimit)
 	if historyLen <= historyLimit {
 		return nil

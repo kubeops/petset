@@ -55,13 +55,9 @@ var petsetlog = logf.Log.WithName("petset-resource")
 
 var _ webhook.CustomDefaulter = &PetSetCustomWebhook{}
 
-// Default implements webhook.Defaulter so a webhook will be registered for the type
-func (w *PetSetCustomWebhook) Default(ctx context.Context, obj runtime.Object) error {
-	ps, ok := obj.(*api.PetSet)
-	if !ok {
-		return fmt.Errorf("expected an PetSet object but got %T", obj)
-	}
-
+// ApplyDefaults applies default values to a PetSet.
+// This function can be called from both webhook and controller to ensure consistent defaulting.
+func ApplyDefaults(ps *api.PetSet) {
 	if len(ps.Spec.PodManagementPolicy) == 0 {
 		ps.Spec.PodManagementPolicy = appsv1.OrderedReadyPodManagement
 	}
@@ -108,6 +104,16 @@ func (w *PetSetCustomWebhook) Default(ctx context.Context, obj runtime.Object) e
 		ps.Spec.RevisionHistoryLimit = new(int32)
 		*ps.Spec.RevisionHistoryLimit = 10
 	}
+}
+
+// Default implements webhook.Defaulter so a webhook will be registered for the type
+func (w *PetSetCustomWebhook) Default(ctx context.Context, obj runtime.Object) error {
+	ps, ok := obj.(*api.PetSet)
+	if !ok {
+		return fmt.Errorf("expected an PetSet object but got %T", obj)
+	}
+
+	ApplyDefaults(ps)
 	return nil
 }
 
