@@ -91,7 +91,7 @@ type PetSetController struct {
 	// manifestListerSynced returns true if the pvc shared informer has synced at least once
 	manifestListerSynced cache.InformerSynced
 	// PetSets that need to be synced.
-	queue workqueue.RateLimitingInterface
+	queue workqueue.TypedRateLimitingInterface[any]
 	// eventBroadcaster is the core of event processing pipeline.
 	eventBroadcaster record.EventBroadcaster
 }
@@ -132,20 +132,22 @@ func NewPetSetController(
 		pvcListerSynced:       pvcInformer.Informer().HasSynced,
 		placementListerSynced: placementInformer.Informer().HasSynced,
 		revListerSynced:       revInformer.Informer().HasSynced,
-		queue:                 workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "petset"),
-		podControl:            controller.RealPodControl{KubeClient: kubeClient, Recorder: recorder},
+		queue: workqueue.NewTypedRateLimitingQueueWithConfig[any](workqueue.DefaultTypedControllerRateLimiter[any](), workqueue.TypedRateLimitingQueueConfig[any]{
+			Name: "petset",
+		}),
+		podControl: controller.RealPodControl{KubeClient: kubeClient, Recorder: recorder},
 
 		eventBroadcaster: eventBroadcaster,
 	}
 
-	podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+	_, _ = podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj any) {
 			ssc.addPod(logger, obj)
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			ssc.updatePod(logger, oldObj, newObj)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			ssc.deletePod(logger, obj)
 		},
 	})
@@ -153,14 +155,14 @@ func NewPetSetController(
 	ssc.podLister = podInformer.Lister()
 	ssc.podListerSynced = podInformer.Informer().HasSynced
 
-	manifestInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+	_, _ = manifestInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj any) {
 			ssc.addManifestWork(logger, obj)
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			ssc.updateManifestWork(logger, oldObj, newObj)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			ssc.deleteManifestWork(logger, obj)
 		},
 	})
@@ -168,10 +170,10 @@ func NewPetSetController(
 	ssc.manifestLister = manifestInformer.Lister()
 	ssc.manifestListerSynced = manifestInformer.Informer().HasSynced
 
-	setInformer.Informer().AddEventHandler(
+	_, _ = setInformer.Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: ssc.enqueuePetSet,
-			UpdateFunc: func(old, cur interface{}) {
+			UpdateFunc: func(old, cur any) {
 				oldPS := old.(*api.PetSet)
 				curPS := cur.(*api.PetSet)
 				if oldPS.Status.Replicas != curPS.Status.Replicas {
@@ -216,7 +218,7 @@ func (ssc *PetSetController) Run(ctx context.Context, workers int) {
 }
 
 // addPod adds the petset for the pod to the sync queue
-func (ssc *PetSetController) addPod(logger klog.Logger, obj interface{}) {
+func (ssc *PetSetController) addPod(logger klog.Logger, obj any) {
 	pod := obj.(*v1.Pod)
 
 	if pod.DeletionTimestamp != nil {
@@ -250,7 +252,7 @@ func (ssc *PetSetController) addPod(logger klog.Logger, obj interface{}) {
 }
 
 // updatePod adds the petset for the current and old pods to the sync queue.
-func (ssc *PetSetController) updatePod(logger klog.Logger, old, cur interface{}) {
+func (ssc *PetSetController) updatePod(logger klog.Logger, old, cur any) {
 	curPod := cur.(*v1.Pod)
 	oldPod := old.(*v1.Pod)
 	if curPod.ResourceVersion == oldPod.ResourceVersion {
@@ -306,7 +308,7 @@ func (ssc *PetSetController) updatePod(logger klog.Logger, old, cur interface{})
 }
 
 // deletePod enqueues the petset for the pod accounting for deletion tombstones.
-func (ssc *PetSetController) deletePod(logger klog.Logger, obj interface{}) {
+func (ssc *PetSetController) deletePod(logger klog.Logger, obj any) {
 	pod, ok := obj.(*v1.Pod)
 
 	// When a delete is dropped, the relist will notice a pod in the store not
@@ -373,7 +375,7 @@ func (ssc *PetSetController) getPodsForPetSet(ctx context.Context, set *api.PetS
 	return cm.ClaimPods(ctx, pods, filter)
 }
 
-func (ssc *PetSetController) addManifestWork(logger klog.Logger, obj interface{}) {
+func (ssc *PetSetController) addManifestWork(logger klog.Logger, obj any) {
 	mw := obj.(*apiworkv1.ManifestWork)
 	if mw.DeletionTimestamp != nil {
 		// on a restart of the controller manager, it's possible a new pod shows up in a state that
@@ -392,7 +394,7 @@ func (ssc *PetSetController) addManifestWork(logger klog.Logger, obj interface{}
 }
 
 // updateManifestWork adds the petset for the current and ManifestWork pods to the sync queue.
-func (ssc *PetSetController) updateManifestWork(logger klog.Logger, old, cur interface{}) {
+func (ssc *PetSetController) updateManifestWork(logger klog.Logger, old, cur any) {
 	curMW := cur.(*apiworkv1.ManifestWork)
 	oldMW := old.(*apiworkv1.ManifestWork)
 	if curMW.ResourceVersion == oldMW.ResourceVersion {
@@ -412,7 +414,7 @@ func (ssc *PetSetController) updateManifestWork(logger klog.Logger, old, cur int
 }
 
 // deleteManifestWork enqueues the petset for the ManifestWork accounting for deletion tombstones.
-func (ssc *PetSetController) deleteManifestWork(logger klog.Logger, obj interface{}) {
+func (ssc *PetSetController) deleteManifestWork(logger klog.Logger, obj any) {
 	mw, ok := obj.(*apiworkv1.ManifestWork)
 
 	// When a delete is dropped, the relist will notice an object in the store not
@@ -444,7 +446,8 @@ func (ssc *PetSetController) deleteManifestWork(logger klog.Logger, obj interfac
 
 // If any adoptions are attempted, we should first recheck for deletion with
 // an uncached quorum read sometime after listing Pods/ControllerRevisions (see #42639).
-func (ssc *PetSetController) canAdoptFunc(ctx context.Context, set *api.PetSet) func(ctx2 context.Context) error {
+// nolint:unparam
+func (ssc *PetSetController) canAdoptFunc(ctx context.Context, set *api.PetSet) func(context.Context) error {
 	return controller.RecheckDeletionTimestamp(func(ctx context.Context) (metav1.Object, error) {
 		fresh, err := ssc.apiClient.AppsV1().PetSets(set.Namespace).Get(ctx, set.Name, metav1.GetOptions{})
 		if err != nil {
@@ -547,7 +550,7 @@ func (ssc *PetSetController) resolveControllerRef(namespace string, controllerRe
 }
 
 // enqueuePetSet enqueues the given petset in the work queue.
-func (ssc *PetSetController) enqueuePetSet(obj interface{}) {
+func (ssc *PetSetController) enqueuePetSet(obj any) {
 	key, err := controller.KeyFunc(obj)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("couldn't get key for object %+v: %v", obj, err))
@@ -613,10 +616,8 @@ func (ssc *PetSetController) sync(ctx context.Context, key string) error {
 
 	// Apply defaults to prevent nil pointer panics (e.g., in truncateHistory)
 	// This ensures defaults are applied even if webhook is not configured or fails
-	setNeedsUpdate := false
-	if set.Spec.RevisionHistoryLimit == nil {
-		setNeedsUpdate = true
-	}
+	setNeedsUpdate := set.Spec.RevisionHistoryLimit == nil
+
 	if set.Spec.Replicas == nil {
 		setNeedsUpdate = true
 	}
@@ -685,7 +686,7 @@ func (ssc *PetSetController) syncPetSet(ctx context.Context, set *api.PetSet, po
 }
 
 func (ssc *PetSetController) handleFinalizerRemove(set *api.PetSet) error {
-	anno := set.ObjectMeta.Annotations
+	anno := set.Annotations
 
 	if anno == nil || anno[api.DeletionPolicyAnnotation] != api.DeletionPolicyOrphan {
 		sel := set.Spec.Selector.DeepCopy()

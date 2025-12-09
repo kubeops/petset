@@ -54,7 +54,7 @@ func TestRealHistory_ListControllerRevisions(t *testing.T) {
 		want      map[string]bool
 	}
 	testFn := func(test *testcase, t *testing.T) {
-		client := fake.NewSimpleClientset()
+		client := fake.NewClientset()
 		informerFactory := informers.NewSharedInformerFactory(client, controller.NoResyncPeriodFunc())
 
 		stop := make(chan struct{})
@@ -1629,6 +1629,7 @@ func TestSortControllerRevisions(t *testing.T) {
 	}
 }
 
+// nolint:unparam
 func newPetSet(replicas int, name string, uid types.UID, labels map[string]string) *api.PetSet {
 	// Converting all the map-only selectors to set-based selectors.
 	var testMatchExpressions []metav1.LabelSelectorRequirement

@@ -41,21 +41,6 @@ import (
 
 var patchCodec = scheme.Codecs.LegacyCodec(api.SchemeGroupVersion)
 
-// overlappingPetSets sorts a list of PetSets by creation timestamp, using their names as a tie breaker.
-// Generally used to tie break between PetSets that have overlapping selectors.
-type overlappingPetSets []*api.PetSet
-
-func (o overlappingPetSets) Len() int { return len(o) }
-
-func (o overlappingPetSets) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
-
-func (o overlappingPetSets) Less(i, j int) bool {
-	if o[i].CreationTimestamp.Equal(&o[j].CreationTimestamp) {
-		return o[i].Name < o[j].Name
-	}
-	return o[i].CreationTimestamp.Before(&o[j].CreationTimestamp)
-}
-
 // statefulPodRegex is a regular expression that extracts the parent PetSet and ordinal from the Name of a Pod
 var statefulPodRegex = regexp.MustCompile("(.*)-([0-9]+)$")
 
@@ -151,8 +136,8 @@ func storageMatches(set *api.PetSet, pod *v1.Pod) bool {
 	for _, claim := range set.Spec.VolumeClaimTemplates {
 		volume, found := volumes[claim.Name]
 		if !found ||
-			volume.VolumeSource.PersistentVolumeClaim == nil ||
-			volume.VolumeSource.PersistentVolumeClaim.ClaimName !=
+			volume.PersistentVolumeClaim == nil ||
+			volume.PersistentVolumeClaim.ClaimName !=
 				getPersistentVolumeClaimName(set, &claim, ordinal) {
 			return false
 		}
@@ -532,15 +517,15 @@ func getPatch(set *api.PetSet) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	var raw map[string]interface{}
+	var raw map[string]any
 	err = json.Unmarshal(data, &raw)
 	if err != nil {
 		return nil, err
 	}
-	objCopy := make(map[string]interface{})
-	specCopy := make(map[string]interface{})
-	spec := raw["spec"].(map[string]interface{})
-	template := spec["template"].(map[string]interface{})
+	objCopy := make(map[string]any)
+	specCopy := make(map[string]any)
+	spec := raw["spec"].(map[string]any)
+	template := spec["template"].(map[string]any)
 	specCopy["template"] = template
 	template["$patch"] = "replace"
 	objCopy["spec"] = specCopy
@@ -566,11 +551,11 @@ func newRevision(set *api.PetSet, revision int64, collisionCount *int32) (*apps.
 	if err != nil {
 		return nil, err
 	}
-	if cr.ObjectMeta.Annotations == nil {
-		cr.ObjectMeta.Annotations = make(map[string]string)
+	if cr.Annotations == nil {
+		cr.Annotations = make(map[string]string)
 	}
 	for key, value := range set.Annotations {
-		cr.ObjectMeta.Annotations[key] = value
+		cr.Annotations[key] = value
 	}
 	return cr, nil
 }
@@ -627,23 +612,6 @@ func completeRollingUpdate(set *api.PetSet, status *apps.StatefulSetStatus) {
 		status.CurrentReplicas = status.UpdatedReplicas
 		status.CurrentRevision = status.UpdateRevision
 	}
-}
-
-// ascendingOrdinal is a sort.Interface that Sorts a list of Pods based on the ordinals extracted
-// from the Pod. Pod's that have not been constructed by PetSet's have an ordinal of -1, and are therefore pushed
-// to the front of the list.
-type ascendingOrdinal []*v1.Pod
-
-func (ao ascendingOrdinal) Len() int {
-	return len(ao)
-}
-
-func (ao ascendingOrdinal) Swap(i, j int) {
-	ao[i], ao[j] = ao[j], ao[i]
-}
-
-func (ao ascendingOrdinal) Less(i, j int) bool {
-	return getOrdinal(ao[i]) < getOrdinal(ao[j])
 }
 
 // descendingOrdinal is a sort.Interface that Sorts a list of Pods based on the ordinals extracted

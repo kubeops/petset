@@ -206,7 +206,7 @@ func (ssc *defaultPetSetControl) truncateHistory(
 	// Safety check: if RevisionHistoryLimit is nil, default to 10
 	// This should never happen if webhook/controller defaults are working properly
 	if set.Spec.RevisionHistoryLimit == nil {
-		klog.Warning("RevisionHistoryLimit is nil for PetSet %s/%s, defaulting to 10", set.Namespace, set.Name)
+		klog.Warningf("RevisionHistoryLimit is nil for PetSet %s/%s, defaulting to 10", set.Namespace, set.Name)
 		historyLimit := int32(10)
 		set.Spec.RevisionHistoryLimit = &historyLimit
 	}
@@ -781,6 +781,9 @@ func (ssc *defaultPetSetControl) newVersionedPetSetPod(currentSet, updateSet *ap
 	}
 	if updateSet.Spec.PodPlacementPolicy != nil {
 		placementPolicy, err = ssc.podControl.objectMgr.GetPlacementPolicy(updateSet.Spec.PodPlacementPolicy.Name)
+		if err != nil {
+			return nil, err
+		}
 	}
 	podList, err := ssc.podControl.objectMgr.ListPods(updateSet.Namespace, labels.SelectorFromSet(updateSet.Spec.Template.Labels).String(), currentSet)
 	if err != nil {

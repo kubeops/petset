@@ -100,10 +100,10 @@ var Semantic = conversion.EqualitiesOrDie(
 		return a.Cmp(b) == 0
 	},
 	func(a, b metav1.MicroTime) bool {
-		return a.UTC() == b.UTC()
+		return a.UTC().Equal(b.UTC())
 	},
 	func(a, b metav1.Time) bool {
-		return a.UTC() == b.UTC()
+		return a.UTC().Equal(b.UTC())
 	},
 	func(a, b labels.Selector) bool {
 		return a.String() == b.String()
@@ -326,14 +326,14 @@ func GetAccessModesFromString(modes string) []core.PersistentVolumeAccessMode {
 	accessModes := []core.PersistentVolumeAccessMode{}
 	for _, s := range strmodes {
 		s = strings.Trim(s, " ")
-		switch {
-		case s == "RWO":
+		switch s {
+		case "RWO":
 			accessModes = append(accessModes, core.ReadWriteOnce)
-		case s == "ROX":
+		case "ROX":
 			accessModes = append(accessModes, core.ReadOnlyMany)
-		case s == "RWX":
+		case "RWX":
 			accessModes = append(accessModes, core.ReadWriteMany)
-		case s == "RWOP":
+		case "RWOP":
 			accessModes = append(accessModes, core.ReadWriteOncePod)
 		}
 	}
