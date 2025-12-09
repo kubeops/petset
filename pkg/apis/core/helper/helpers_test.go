@@ -25,7 +25,7 @@ import (
 
 func TestSemantic(t *testing.T) {
 	table := []struct {
-		a, b        interface{}
+		a, b        any
 		shouldEqual bool
 	}{
 		{resource.MustParse("0"), resource.Quantity{}, true},

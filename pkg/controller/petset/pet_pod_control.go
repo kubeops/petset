@@ -26,6 +26,8 @@ import (
 	appslisters "kubeops.dev/petset/client/listers/apps/v1"
 	"kubeops.dev/petset/pkg/features"
 
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -282,7 +284,7 @@ func (spc *StatefulPodControl) ClaimsMatchRetentionPolicy(ctx context.Context, s
 		case apierrors.IsNotFound(err):
 			klog.FromContext(ctx).V(4).Info("Expected claim missing, continuing to pick up in next iteration", "PVC", klog.KObj(claim))
 		case err != nil:
-			return false, fmt.Errorf("Could not retrieve claim %s for %s when checking PVC deletion policy", claimName, pod.Name)
+			return false, fmt.Errorf("could not retrieve claim %s for %s when checking PVC deletion policy", claimName, pod.Name)
 		default:
 			if !claimOwnerMatchesSetAndPod(logger, claim, set, pod) {
 				return false, nil
@@ -304,7 +306,7 @@ func (spc *StatefulPodControl) UpdatePodClaimForRetentionPolicy(ctx context.Cont
 		case apierrors.IsNotFound(err):
 			logger.V(4).Info("Expected claim missing, continuing to pick up in next iteration", "PVC", klog.KObj(claim))
 		case err != nil:
-			return fmt.Errorf("Could not retrieve claim %s not found for %s when checking PVC deletion policy: %w", claimName, pod.Name, err)
+			return fmt.Errorf("could not retrieve claim %s not found for %s when checking PVC deletion policy: %w", claimName, pod.Name, err)
 		default:
 			if !claimOwnerMatchesSetAndPod(logger, claim, set, pod) {
 				claim = claim.DeepCopy() // Make a copy so we don't mutate the shared cache.
@@ -312,7 +314,7 @@ func (spc *StatefulPodControl) UpdatePodClaimForRetentionPolicy(ctx context.Cont
 				if needsUpdate {
 					err := spc.objectMgr.UpdateClaim(claim, set)
 					if err != nil {
-						return fmt.Errorf("Could not update claim %s for delete policy ownerRefs: %w", claimName, err)
+						return fmt.Errorf("could not update claim %s for delete policy ownerRefs: %w", claimName, err)
 					}
 				}
 			}
@@ -351,13 +353,14 @@ func (spc *StatefulPodControl) PodClaimIsStale(set *api.PetSet, pod *v1.Pod) (bo
 // recordPodEvent records an event for verb applied to a Pod in a PetSet. If err is nil the generated event will
 // have a reason of v1.EventTypeNormal. If err is not nil the generated event will have a reason of v1.EventTypeWarning.
 func (spc *StatefulPodControl) recordPodEvent(verb string, set *api.PetSet, pod *v1.Pod, err error) {
+	caser := cases.Title(language.English)
 	if err == nil {
-		reason := fmt.Sprintf("Successful%s", strings.Title(verb))
+		reason := fmt.Sprintf("Successful%s", caser.String(verb))
 		message := fmt.Sprintf("%s Pod %s in PetSet %s successful",
 			strings.ToLower(verb), pod.Name, set.Name)
 		spc.recorder.Event(set, v1.EventTypeNormal, reason, message)
 	} else {
-		reason := fmt.Sprintf("Failed%s", strings.Title(verb))
+		reason := fmt.Sprintf("Failed%s", caser.String(verb))
 		message := fmt.Sprintf("%s Pod %s in PetSet %s failed error: %s",
 			strings.ToLower(verb), pod.Name, set.Name, err)
 		spc.recorder.Event(set, v1.EventTypeWarning, reason, message)
@@ -368,13 +371,14 @@ func (spc *StatefulPodControl) recordPodEvent(verb string, set *api.PetSet, pod 
 // nil the generated event will have a reason of v1.EventTypeNormal. If err is not nil the generated event will have a
 // reason of v1.EventTypeWarning.
 func (spc *StatefulPodControl) recordClaimEvent(verb string, set *api.PetSet, pod *v1.Pod, claim *v1.PersistentVolumeClaim, err error) {
+	caser := cases.Title(language.English)
 	if err == nil {
-		reason := fmt.Sprintf("Successful%s", strings.Title(verb))
+		reason := fmt.Sprintf("Successful%s", caser.String(verb))
 		message := fmt.Sprintf("%s Claim %s Pod %s in PetSet %s success",
 			strings.ToLower(verb), claim.Name, pod.Name, set.Name)
 		spc.recorder.Event(set, v1.EventTypeNormal, reason, message)
 	} else {
-		reason := fmt.Sprintf("Failed%s", strings.Title(verb))
+		reason := fmt.Sprintf("Failed%s", caser.String(verb))
 		message := fmt.Sprintf("%s Claim %s for Pod %s in PetSet %s failed error: %s",
 			strings.ToLower(verb), claim.Name, pod.Name, set.Name, err)
 		spc.recorder.Event(set, v1.EventTypeWarning, reason, message)

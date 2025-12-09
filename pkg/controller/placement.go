@@ -37,7 +37,7 @@ type PodInfo struct {
 	PlacementPolicy *api.PlacementPolicy
 	PodIndex        int
 	PodList         *v1.PodList
-	Obj             map[string]interface{}
+	Obj             map[string]any
 	Env             *cel.Env
 }
 
@@ -293,7 +293,7 @@ func preCalc(pInfo *PodInfo) error {
 	return nil
 }
 
-func evaluateCEL(obj map[string]interface{}, env *cel.Env, rule string) (int64, error) {
+func evaluateCEL(obj map[string]any, env *cel.Env, rule string) (int64, error) {
 	if rule == "" {
 		return -1, nil
 	}
@@ -319,7 +319,7 @@ func evaluateCEL(obj map[string]interface{}, env *cel.Env, rule string) (int64, 
 		return 0, err
 	}
 
-	res := make(map[string]interface{})
+	res := make(map[string]any)
 	res[defaultCELVar] = obj
 
 	val, _, err := program.Eval(res)

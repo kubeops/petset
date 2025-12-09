@@ -45,15 +45,15 @@ func (om *realStatefulPodControlObjectManager) CreatePodManifestWork(ctx context
 	}
 	pod.APIVersion = "v1"
 	pod.Kind = "Pod"
-	pod.ObjectMeta.GenerateName = ""
-	pod.ObjectMeta.OwnerReferences = nil
+	pod.GenerateName = ""
+	pod.OwnerReferences = nil
 	podUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(pod)
 	if err != nil {
 		return fmt.Errorf("failed to convert pod to unstructured: %w", err)
 	}
 
 	// Adding an extra label to only delete the pod and ignore deleting pvc
-	labels := DeepCopyLabel(pod.ObjectMeta.Labels)
+	labels := DeepCopyLabel(pod.Labels)
 	labels[api.ManifestWorkRoleLabel] = api.RolePod
 
 	mw := &apiworkv1.ManifestWork{
@@ -311,7 +311,7 @@ func (om *realStatefulPodControlObjectManager) CreateClaimManifestWork(set *api.
 	if err != nil {
 		return fmt.Errorf("failed to convert claim to unstructured: %w", err)
 	}
-	labels := DeepCopyLabel(claim.ObjectMeta.Labels)
+	labels := DeepCopyLabel(claim.Labels)
 	labels[api.ManifestWorkRoleLabel] = api.RolePVC
 
 	mw := &apiworkv1.ManifestWork{
