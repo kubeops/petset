@@ -124,12 +124,14 @@ func (c *ConnectionSpec) ToAppBinding() (*appcatalog.AppBinding, error) {
 		},
 	}
 	if c.AuthSecret != nil {
-		app.Spec.Secret = &core.LocalObjectReference{
+		app.Spec.Secret = &appcatalog.TypedLocalObjectReference{
+			Kind: "Secret", // It will create circular dependency, If we use Kubedb Constant .
 			Name: c.AuthSecret.Name,
 		}
 	}
 	if c.TLSSecret != nil {
-		app.Spec.TLSSecret = &core.LocalObjectReference{
+		app.Spec.TLSSecret = &appcatalog.TypedLocalObjectReference{
+			Kind: "Secret",
 			Name: c.TLSSecret.Name,
 		}
 	}

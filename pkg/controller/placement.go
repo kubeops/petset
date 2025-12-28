@@ -24,7 +24,8 @@ import (
 	api "kubeops.dev/petset/apis/apps/v1"
 
 	"github.com/google/cel-go/cel"
-	"github.com/google/cel-go/checker/decls"
+	"github.com/google/cel-go/common/decls"
+	"github.com/google/cel-go/common/types"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -283,8 +284,8 @@ func preCalc(pInfo *PodInfo) error {
 	pInfo.Obj = obj
 
 	env, err := cel.NewEnv(
-		cel.Declarations(
-			decls.NewVar(defaultCELVar, decls.Dyn)))
+		cel.VariableDecls(
+			decls.NewVariable(defaultCELVar, types.DynType)))
 	if err != nil {
 		klog.Errorf("error while creating new CEL env: %s", err.Error())
 		return err
