@@ -1607,8 +1607,8 @@ kmodules.xyz/go-containerregistry/authn
 # kmodules.xyz/monitoring-agent-api v0.34.0
 ## explicit; go 1.24.0
 kmodules.xyz/monitoring-agent-api/api/v1
-# open-cluster-management.io/api v1.0.0
-## explicit; go 1.23.6
+# open-cluster-management.io/api v1.1.0
+## explicit; go 1.24.0
 open-cluster-management.io/api/client/work/clientset/versioned
 open-cluster-management.io/api/client/work/clientset/versioned/scheme
 open-cluster-management.io/api/client/work/clientset/versioned/typed/work/v1
