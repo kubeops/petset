@@ -27,7 +27,7 @@ require (
 	kmodules.xyz/client-go v0.34.2
 	kmodules.xyz/go-containerregistry v0.0.15
 	kmodules.xyz/monitoring-agent-api v0.34.0
-	open-cluster-management.io/api v1.0.0
+	open-cluster-management.io/api v1.1.0
 	sigs.k8s.io/controller-runtime v0.22.4
 	sigs.k8s.io/randfill v1.0.0
 	sigs.k8s.io/yaml v1.6.0
