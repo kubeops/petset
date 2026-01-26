@@ -101,6 +101,10 @@ func (om *realStatefulPodControlObjectManager) CreatePodManifestWork(ctx context
 									Name: "PodRoleLabel",
 									Path: ".metadata.labels.kubedb-role",
 								},
+								{
+									Name: "NodeName",
+									Path: ".spec.nodeName",
+								},
 							},
 						},
 					},
