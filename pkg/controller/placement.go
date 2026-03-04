@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	api "kubeops.dev/petset/apis/apps/v1"
+	"gomodules.xyz/oneliners"
 
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/common/decls"
@@ -30,6 +31,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
+
 )
 
 type PodInfo struct {
@@ -209,6 +211,8 @@ type calculatedDomain struct {
 }
 
 func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, error) {
+	oneliners.PrettyJson(pInfo.PlacementPolicy)
+	klog.Infof("%v %v", pInfo.PodIndex, rule)
 	calculatedDomains := make([]calculatedDomain, 0)
 	for _, domain := range rule.Domains {
 		eval, err := evaluateCEL(pInfo.Obj, pInfo.Env, domain.Replicas)
@@ -220,6 +224,7 @@ func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, e
 			replicas: eval,
 		})
 	}
+	klog.Infof("calculated domains: %v", calculatedDomains)
 
 	updateAssignedCount := func(val string) {
 		for i := range calculatedDomains {
@@ -230,8 +235,15 @@ func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, e
 		}
 	}
 	for _, pod := range pInfo.PodList.Items {
+		klog.Infof("-----> %s %v", pod.Name, pod.Spec.Affinity != nil)
+		if pod.Spec.Affinity == nil || pod.Spec.Affinity.NodeAffinity == nil {
+			continue
+		}
 		aff := pod.Spec.Affinity.NodeAffinity
 		if rule.WhenUnsatisfiable == v1.DoNotSchedule {
+			if aff.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+				continue
+			}
 			for _, term := range aff.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
 				for _, req := range term.MatchExpressions {
 					if req.Key == rule.TopologyKey {
@@ -241,6 +253,9 @@ func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, e
 				}
 			}
 		} else {
+			if aff.PreferredDuringSchedulingIgnoredDuringExecution == nil {
+				continue
+			}
 			for _, term := range aff.PreferredDuringSchedulingIgnoredDuringExecution {
 				for _, req := range term.Preference.MatchExpressions {
 					if req.Key == rule.TopologyKey {

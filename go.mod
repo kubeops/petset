@@ -12,6 +12,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/text v0.32.0
 	gomodules.xyz/logs v0.0.7
+	gomodules.xyz/oneliners v0.0.1
 	gomodules.xyz/pointer v0.1.0
 	gomodules.xyz/x v0.0.17
 	k8s.io/api v0.34.3
