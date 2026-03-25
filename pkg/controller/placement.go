@@ -26,6 +26,7 @@ import (
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/common/decls"
 	"github.com/google/cel-go/common/types"
+	"gomodules.xyz/oneliners"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -55,18 +56,21 @@ func NewPodInfo(set *api.PetSet, template *api.PodTemplateSpec, place *api.Place
 func CalculateForPodPlacement(pInfo *PodInfo) (v1.PodSpec, error) {
 	podSpec := *pInfo.Template.Spec.DeepCopy()
 	if pInfo.PlacementPolicy == nil {
+		klog.Infoln("pInfo.PlacementPolicy is nill")
 		return podSpec, nil
 	}
 	err := preCalc(pInfo)
+	klog.Infoln("preCalc error: ", err)
 	if err != nil {
 		return podSpec, err
 	}
-	podSpec = setSpreadConstraintsFromPlacement(podSpec, *pInfo)
 	podSpec = setSpreadConstraintsFromPlacement(podSpec, *pInfo)
 	return setNodeAffinityFromPlacement(podSpec, *pInfo)
 }
 
 func setSpreadConstraintsFromPlacement(podSpec v1.PodSpec, pInfo PodInfo) v1.PodSpec {
+	klog.Infoln("setSpreadConstraintsFromPlacement function Start!")
+
 	pl := pInfo.PlacementPolicy.Spec
 	podLabels := pInfo.Template.Labels
 	tsc := v1.TopologySpreadConstraint{
@@ -90,7 +94,12 @@ func setSpreadConstraintsFromPlacement(podSpec v1.PodSpec, pInfo PodInfo) v1.Pod
 	if podSpec.Affinity == nil {
 		podSpec.Affinity = &v1.Affinity{}
 	}
+
+	klog.Infoln("<setSpreadConstraintsFromPlacement> replicas: ", pInfo.PetSet.Spec.Replicas, "podIndex: ", pInfo.PodIndex)
+	oneliners.PrettyJson(&podSpec.TopologySpreadConstraints)
 	setAntiAffinityRules(podSpec.Affinity, pl, podLabels)
+	oneliners.PrettyJson(podSpec.Affinity)
+	klog.Infoln("setSpreadConstraintsFromPlacement function done!")
 	return podSpec
 }
 
@@ -106,6 +115,7 @@ func UpsertTopologySpreadConstraint(lst []v1.TopologySpreadConstraint, tsc v1.To
 
 func setAntiAffinityRules(aff *v1.Affinity, pl api.PlacementPolicySpec, podLabels map[string]string) {
 	if pl.ZoneSpreadConstraint == nil && pl.NodeSpreadConstraint == nil {
+		klog.Infoln("both ZoneSpreadConstraint and NodeSpreadConstraint are nil, no anti-affinity rules will be set")
 		return
 	}
 	if aff.PodAntiAffinity == nil {
@@ -129,6 +139,8 @@ func setAntiAffinityRules(aff *v1.Affinity, pl api.PlacementPolicySpec, podLabel
 		term.TopologyKey = v1.LabelHostname
 		aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = UpsertPodAffinityTerm(aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, term)
 	}
+	klog.Infoln("setAntiAffinityRules: printing anti-affinity rules after setting up anti-affinity rules")
+	oneliners.PrettyJson(aff.PodAntiAffinity)
 }
 
 func UpsertPodAffinityTerm(lst []v1.PodAffinityTerm, term v1.PodAffinityTerm) []v1.PodAffinityTerm {
@@ -142,6 +154,7 @@ func UpsertPodAffinityTerm(lst []v1.PodAffinityTerm, term v1.PodAffinityTerm) []
 }
 
 func setNodeAffinityFromPlacement(podSpec v1.PodSpec, pInfo PodInfo) (v1.PodSpec, error) {
+	klog.Infoln("setNodeAffinityFromPlacement function Start!")
 	pl := pInfo.PlacementPolicy.Spec
 	if pl.Affinity == nil || pl.Affinity.NodeAffinity == nil {
 		return podSpec, nil
@@ -174,6 +187,7 @@ func setNodeAffinityFromPlacement(podSpec v1.PodSpec, pInfo PodInfo) (v1.PodSpec
 	}
 	for _, rule := range pl.Affinity.NodeAffinity {
 		domainIndex, err := getAppropriateDomainIndex(rule, pInfo)
+		klog.Infoln("Domain index for rule with topology key ", rule.TopologyKey, " is ", domainIndex, "error: ", err)
 		if err != nil {
 			return podSpec, err
 		}
@@ -199,6 +213,9 @@ func setNodeAffinityFromPlacement(podSpec v1.PodSpec, pInfo PodInfo) (v1.PodSpec
 		podSpec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = requiredAff
 	}
 	podSpec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = preferredAff
+	klog.Infoln("setNodeAffinityFromPlacement: printing node affinity after setting up node affinity rules")
+	oneliners.PrettyJson(podSpec.Affinity.NodeAffinity)
+	klog.Infoln("setNodeAffinityFromPlacement function done!")
 	return podSpec, nil
 }
 
@@ -223,6 +240,7 @@ func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, e
 
 	updateAssignedCount := func(val string) {
 		for i := range calculatedDomains {
+			klog.Infoln("updateAssignedCount: comparing val ", val, " with calculated domain values ", calculatedDomains[i].values)
 			if calculatedDomains[i].values == val {
 				calculatedDomains[i].alreadyAssigned++
 				return
@@ -232,6 +250,7 @@ func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, e
 	for _, pod := range pInfo.PodList.Items {
 		aff := pod.Spec.Affinity.NodeAffinity
 		if rule.WhenUnsatisfiable == v1.DoNotSchedule {
+			klog.Infoln("printing updated assignecount for rule with topology key ", rule.TopologyKey, " and values ", rule.Domains)
 			for _, term := range aff.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
 				for _, req := range term.MatchExpressions {
 					if req.Key == rule.TopologyKey {
@@ -241,6 +260,7 @@ func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, e
 				}
 			}
 		} else {
+			klog.Infoln("printing updated assignecount for preferred rule with topology key ", rule.TopologyKey, " and values ", rule.Domains)
 			for _, term := range aff.PreferredDuringSchedulingIgnoredDuringExecution {
 				for _, req := range term.Preference.MatchExpressions {
 					if req.Key == rule.TopologyKey {
@@ -251,6 +271,11 @@ func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, e
 			}
 		}
 	}
+	for _, domain := range calculatedDomains {
+		klog.Infoln(domain.values, domain.alreadyAssigned, domain.replicas)
+	}
+	oneliners.PrettyJson(&calculatedDomains)
+
 	for i, domain := range calculatedDomains {
 		if domain.replicas == -1 {
 			return i, nil

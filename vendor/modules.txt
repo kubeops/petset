@@ -730,6 +730,9 @@ gomodules.xyz/logs
 # gomodules.xyz/mergo v0.3.13
 ## explicit; go 1.13
 gomodules.xyz/mergo
+# gomodules.xyz/oneliners v0.0.1
+## explicit; go 1.14
+gomodules.xyz/oneliners
 # gomodules.xyz/pointer v0.1.0
 ## explicit; go 1.15
 gomodules.xyz/pointer
