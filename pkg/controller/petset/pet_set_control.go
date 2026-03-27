@@ -775,7 +775,10 @@ func (ssc *defaultPetSetControl) newVersionedPetSetPod(currentSet, updateSet *ap
 			return nil, err
 		}
 
-		pod := newPetSetPod(currentSet, placementPolicy, ordinal, podList)
+		pod, err := newPetSetPod(currentSet, placementPolicy, ordinal, podList)
+		if err != nil {
+			return pod, err
+		}
 		setPodRevision(pod, currentRevision)
 		return pod, err
 	}
@@ -789,7 +792,10 @@ func (ssc *defaultPetSetControl) newVersionedPetSetPod(currentSet, updateSet *ap
 	if err != nil {
 		return nil, err
 	}
-	pod := newPetSetPod(updateSet, placementPolicy, ordinal, podList)
+	pod, err := newPetSetPod(updateSet, placementPolicy, ordinal, podList)
+	if err != nil {
+		return pod, err
+	}
 	setPodRevision(pod, updateRevision)
 	return pod, err
 }

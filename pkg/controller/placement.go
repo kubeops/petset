@@ -62,7 +62,6 @@ func CalculateForPodPlacement(pInfo *PodInfo) (v1.PodSpec, error) {
 		return podSpec, err
 	}
 	podSpec = setSpreadConstraintsFromPlacement(podSpec, *pInfo)
-	podSpec = setSpreadConstraintsFromPlacement(podSpec, *pInfo)
 	return setNodeAffinityFromPlacement(podSpec, *pInfo)
 }
 
@@ -90,6 +89,7 @@ func setSpreadConstraintsFromPlacement(podSpec v1.PodSpec, pInfo PodInfo) v1.Pod
 	if podSpec.Affinity == nil {
 		podSpec.Affinity = &v1.Affinity{}
 	}
+
 	setAntiAffinityRules(podSpec.Affinity, pl, podLabels)
 	return podSpec
 }
@@ -251,6 +251,7 @@ func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, e
 			}
 		}
 	}
+
 	for i, domain := range calculatedDomains {
 		if domain.replicas == -1 {
 			return i, nil
