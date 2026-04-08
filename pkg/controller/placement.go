@@ -209,6 +209,7 @@ type calculatedDomain struct {
 }
 
 func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, error) {
+	klog.Infof("placement policy %s: %+v ; podIndex=%v, rule=%v \n", pInfo.PlacementPolicy.Name, pInfo.PlacementPolicy.Spec, pInfo.PodIndex, rule)
 	calculatedDomains := make([]calculatedDomain, 0)
 	for _, domain := range rule.Domains {
 		eval, err := evaluateCEL(pInfo.Obj, pInfo.Env, domain.Replicas)
@@ -220,6 +221,7 @@ func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, e
 			replicas: eval,
 		})
 	}
+	klog.Infof("calculated domains: %v", calculatedDomains)
 
 	updateAssignedCount := func(val string) {
 		for i := range calculatedDomains {
@@ -230,8 +232,14 @@ func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, e
 		}
 	}
 	for _, pod := range pInfo.PodList.Items {
+		if pod.Spec.Affinity == nil || pod.Spec.Affinity.NodeAffinity == nil {
+			continue
+		}
 		aff := pod.Spec.Affinity.NodeAffinity
 		if rule.WhenUnsatisfiable == v1.DoNotSchedule {
+			if aff.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+				continue
+			}
 			for _, term := range aff.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
 				for _, req := range term.MatchExpressions {
 					if req.Key == rule.TopologyKey {
@@ -241,6 +249,9 @@ func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, e
 				}
 			}
 		} else {
+			if aff.PreferredDuringSchedulingIgnoredDuringExecution == nil {
+				continue
+			}
 			for _, term := range aff.PreferredDuringSchedulingIgnoredDuringExecution {
 				for _, req := range term.Preference.MatchExpressions {
 					if req.Key == rule.TopologyKey {
