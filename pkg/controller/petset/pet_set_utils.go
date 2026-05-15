@@ -451,14 +451,17 @@ func getPodRevision(pod *v1.Pod) string {
 }
 
 // newPetSetPod returns a new Pod conforming to the set's Spec with an identity generated from ordinal.
-func newPetSetPod(set *api.PetSet, placementPolicy *api.PlacementPolicy, ordinal int, podList *v1.PodList) *v1.Pod {
+func newPetSetPod(set *api.PetSet, placementPolicy *api.PlacementPolicy, ordinal int, podList *v1.PodList) (*v1.Pod, error) {
 	pInfo := controller.NewPodInfo(set, &set.Spec.Template, placementPolicy, ordinal-getStartOrdinal(set), podList)
-	pod, _ := controller.GetPodFromTemplate(pInfo, set, metav1.NewControllerRef(set, controllerKind))
+	pod, err := controller.GetPodFromTemplate(pInfo, set, metav1.NewControllerRef(set, controllerKind))
+	if err != nil {
+		return pod, err
+	}
 	pod.Name = getPodName(set, ordinal)
 	initIdentity(set, pod)
 	updateStorage(set, pod)
 	setOCMPlacement(set, pInfo.PodIndex, pod, placementPolicy)
-	return pod
+	return pod, nil
 }
 
 func setOCMPlacement(set *api.PetSet, ordinal int, pod *v1.Pod, pp *api.PlacementPolicy) {
