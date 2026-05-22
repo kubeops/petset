@@ -68,22 +68,27 @@ func CalculateForPodPlacement(pInfo *PodInfo) (v1.PodSpec, error) {
 func setSpreadConstraintsFromPlacement(podSpec v1.PodSpec, pInfo PodInfo) v1.PodSpec {
 	pl := pInfo.PlacementPolicy.Spec
 	podLabels := pInfo.Template.Labels
-	tsc := v1.TopologySpreadConstraint{
-		LabelSelector: &metav1.LabelSelector{
-			MatchLabels: podLabels,
-		},
+
+	newLabelSelector := func() *metav1.LabelSelector {
+		return &metav1.LabelSelector{MatchLabels: podLabels}
 	}
 
 	if pl.ZoneSpreadConstraint != nil {
-		tsc.TopologyKey = v1.LabelTopologyZone
-		tsc.MaxSkew = pl.ZoneSpreadConstraint.MaxSkew
-		tsc.WhenUnsatisfiable = pl.ZoneSpreadConstraint.WhenUnsatisfiable
+		tsc := v1.TopologySpreadConstraint{
+			LabelSelector:     newLabelSelector(),
+			TopologyKey:       v1.LabelTopologyZone,
+			MaxSkew:           pl.ZoneSpreadConstraint.MaxSkew,
+			WhenUnsatisfiable: pl.ZoneSpreadConstraint.WhenUnsatisfiable,
+		}
 		podSpec.TopologySpreadConstraints = UpsertTopologySpreadConstraint(podSpec.TopologySpreadConstraints, tsc)
 	}
 	if pl.NodeSpreadConstraint != nil {
-		tsc.TopologyKey = v1.LabelHostname
-		tsc.MaxSkew = pl.NodeSpreadConstraint.MaxSkew
-		tsc.WhenUnsatisfiable = pl.NodeSpreadConstraint.WhenUnsatisfiable
+		tsc := v1.TopologySpreadConstraint{
+			LabelSelector:     newLabelSelector(),
+			TopologyKey:       v1.LabelHostname,
+			MaxSkew:           pl.NodeSpreadConstraint.MaxSkew,
+			WhenUnsatisfiable: pl.NodeSpreadConstraint.WhenUnsatisfiable,
+		}
 		podSpec.TopologySpreadConstraints = UpsertTopologySpreadConstraint(podSpec.TopologySpreadConstraints, tsc)
 	}
 	if podSpec.Affinity == nil {
@@ -111,24 +116,47 @@ func setAntiAffinityRules(aff *v1.Affinity, pl api.PlacementPolicySpec, podLabel
 	if aff.PodAntiAffinity == nil {
 		aff.PodAntiAffinity = &v1.PodAntiAffinity{}
 	}
-	if aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
-		aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = make([]v1.PodAffinityTerm, 0)
+
+	newTerm := func(topologyKey string) v1.PodAffinityTerm {
+		return v1.PodAffinityTerm{
+			LabelSelector: &metav1.LabelSelector{MatchLabels: podLabels},
+			TopologyKey:   topologyKey,
+		}
 	}
 
-	term := v1.PodAffinityTerm{
-		LabelSelector: &metav1.LabelSelector{
-			MatchLabels: podLabels,
-		},
-	}
-	if pl.ZoneSpreadConstraint != nil && pl.ZoneSpreadConstraint.WhenUnsatisfiable == v1.DoNotSchedule {
-		term.TopologyKey = v1.LabelTopologyZone
-		aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = UpsertPodAffinityTerm(aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, term)
+	if pl.ZoneSpreadConstraint != nil {
+		term := newTerm(v1.LabelTopologyZone)
+		if pl.ZoneSpreadConstraint.WhenUnsatisfiable == v1.DoNotSchedule {
+			aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = UpsertPodAffinityTerm(
+				aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, term)
+		} else {
+			aff.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution = UpsertWeightedPodAffinityTerm(
+				aff.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution,
+				v1.WeightedPodAffinityTerm{Weight: 100, PodAffinityTerm: term})
+		}
 	}
 
-	if pl.NodeSpreadConstraint != nil && pl.NodeSpreadConstraint.WhenUnsatisfiable == v1.DoNotSchedule {
-		term.TopologyKey = v1.LabelHostname
-		aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = UpsertPodAffinityTerm(aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, term)
+	if pl.NodeSpreadConstraint != nil {
+		term := newTerm(v1.LabelHostname)
+		if pl.NodeSpreadConstraint.WhenUnsatisfiable == v1.DoNotSchedule {
+			aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = UpsertPodAffinityTerm(
+				aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, term)
+		} else {
+			aff.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution = UpsertWeightedPodAffinityTerm(
+				aff.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution,
+				v1.WeightedPodAffinityTerm{Weight: 100, PodAffinityTerm: term})
+		}
 	}
+}
+
+func UpsertWeightedPodAffinityTerm(lst []v1.WeightedPodAffinityTerm, term v1.WeightedPodAffinityTerm) []v1.WeightedPodAffinityTerm {
+	for i, t := range lst {
+		if t.PodAffinityTerm.TopologyKey == term.PodAffinityTerm.TopologyKey {
+			lst[i] = term
+			return lst
+		}
+	}
+	return append(lst, term)
 }
 
 func UpsertPodAffinityTerm(lst []v1.PodAffinityTerm, term v1.PodAffinityTerm) []v1.PodAffinityTerm {
@@ -278,6 +306,7 @@ func UpsertNodeSelectorRequirements(reqList []v1.NodeSelectorRequirement, req v1
 	for i, requirement := range reqList {
 		if requirement.Key == req.Key {
 			reqList[i] = req
+			return reqList
 		}
 	}
 	return append(reqList, req)
@@ -340,5 +369,9 @@ func evaluateCEL(obj map[string]any, env *cel.Env, rule string) (int64, error) {
 		klog.Errorf("CEL eval error %s", err.Error())
 		return 0, err
 	}
-	return val.Value().(int64), nil
+	v, ok := val.Value().(int64)
+	if !ok {
+		return 0, fmt.Errorf("CEL expression must return int64, got %T", val.Value())
+	}
+	return v, nil
 }
