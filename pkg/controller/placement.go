@@ -40,6 +40,7 @@ type PodInfo struct {
 	PodList         *v1.PodList
 	Obj             map[string]any
 	Env             *cel.Env
+	programCache    map[string]cel.Program
 }
 
 func NewPodInfo(set *api.PetSet, template *api.PodTemplateSpec, place *api.PlacementPolicy, podIndex int, podList *v1.PodList) PodInfo {
@@ -101,7 +102,7 @@ func setSpreadConstraintsFromPlacement(podSpec v1.PodSpec, pInfo PodInfo) v1.Pod
 
 func UpsertTopologySpreadConstraint(lst []v1.TopologySpreadConstraint, tsc v1.TopologySpreadConstraint) []v1.TopologySpreadConstraint {
 	for i, constraint := range lst {
-		if constraint.TopologyKey == tsc.TopologyKey && constraint.WhenUnsatisfiable == tsc.WhenUnsatisfiable {
+		if constraint.TopologyKey == tsc.TopologyKey {
 			lst[i] = tsc
 			return lst
 		}
@@ -211,6 +212,12 @@ func setNodeAffinityFromPlacement(podSpec v1.PodSpec, pInfo PodInfo) (v1.PodSpec
 			Values:   rule.Domains[domainIndex].Values,
 		}
 		if rule.WhenUnsatisfiable == v1.DoNotSchedule {
+			for _, existing := range singleRequiredTerm.MatchExpressions {
+				if existing.Key == req.Key {
+					klog.Warningf("placement policy %s: duplicate DoNotSchedule rule for topology key %q; previous rule values will be overwritten", pInfo.PlacementPolicy.Name, req.Key)
+					break
+				}
+			}
 			singleRequiredTerm.MatchExpressions = UpsertNodeSelectorRequirements(singleRequiredTerm.MatchExpressions, req)
 		}
 		if rule.WhenUnsatisfiable == v1.ScheduleAnyway {
@@ -237,10 +244,10 @@ type calculatedDomain struct {
 }
 
 func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, error) {
-	klog.Infof("placement policy %s: %+v ; podIndex=%v, rule=%v \n", pInfo.PlacementPolicy.Name, pInfo.PlacementPolicy.Spec, pInfo.PodIndex, rule)
+	klog.V(4).Infof("placement policy %s: %+v ; podIndex=%v, rule=%v", pInfo.PlacementPolicy.Name, pInfo.PlacementPolicy.Spec, pInfo.PodIndex, rule)
 	calculatedDomains := make([]calculatedDomain, 0)
 	for _, domain := range rule.Domains {
-		eval, err := evaluateCEL(pInfo.Obj, pInfo.Env, domain.Replicas)
+		eval, err := evaluateCEL(&pInfo, domain.Replicas)
 		if err != nil {
 			return 0, err
 		}
@@ -249,7 +256,7 @@ func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, e
 			replicas: eval,
 		})
 	}
-	klog.Infof("calculated domains: %v", calculatedDomains)
+	klog.V(4).Infof("calculated domains: %v", calculatedDomains)
 
 	updateAssignedCount := func(val string) {
 		for i := range calculatedDomains {
@@ -268,26 +275,9 @@ func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, e
 			if aff.RequiredDuringSchedulingIgnoredDuringExecution == nil {
 				continue
 			}
-			for _, term := range aff.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
-				for _, req := range term.MatchExpressions {
-					if req.Key == rule.TopologyKey {
-						updateAssignedCount(strings.Join(req.Values, ","))
-						break
-					}
-				}
-			}
+			countPodForTopology(aff.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms, rule.TopologyKey, updateAssignedCount)
 		} else {
-			if aff.PreferredDuringSchedulingIgnoredDuringExecution == nil {
-				continue
-			}
-			for _, term := range aff.PreferredDuringSchedulingIgnoredDuringExecution {
-				for _, req := range term.Preference.MatchExpressions {
-					if req.Key == rule.TopologyKey {
-						updateAssignedCount(strings.Join(req.Values, ","))
-						break
-					}
-				}
-			}
+			countPodForPreferredTopology(aff.PreferredDuringSchedulingIgnoredDuringExecution, rule.TopologyKey, updateAssignedCount)
 		}
 	}
 
@@ -299,7 +289,29 @@ func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, e
 			return i, nil
 		}
 	}
-	return 0, fmt.Errorf("invalid domains %v, mismatched with podIndex %v", rule.Domains, pInfo.PodIndex)
+	return 0, fmt.Errorf("invalid domains %v, mismatched with podIndex %v of placement policy %q", rule.Domains, pInfo.PodIndex, pInfo.PlacementPolicy.Name)
+}
+
+func countPodForTopology(terms []v1.NodeSelectorTerm, topologyKey string, count func(string)) {
+	for _, term := range terms {
+		for _, req := range term.MatchExpressions {
+			if req.Key == topologyKey {
+				count(strings.Join(req.Values, ","))
+				return
+			}
+		}
+	}
+}
+
+func countPodForPreferredTopology(terms []v1.PreferredSchedulingTerm, topologyKey string, count func(string)) {
+	for _, term := range terms {
+		for _, req := range term.Preference.MatchExpressions {
+			if req.Key == topologyKey {
+				count(strings.Join(req.Values, ","))
+				return
+			}
+		}
+	}
 }
 
 func UpsertNodeSelectorRequirements(reqList []v1.NodeSelectorRequirement, req v1.NodeSelectorRequirement) []v1.NodeSelectorRequirement {
@@ -320,7 +332,7 @@ func preCalc(pInfo *PodInfo) error {
 	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(pInfo.PetSet)
 	if err != nil {
 		klog.Errorf("error while converting to unstructured: %s", err.Error())
-		return err
+		return fmt.Errorf("converting PetSet to unstructured: %w", err)
 	}
 	pInfo.Obj = obj
 
@@ -329,49 +341,58 @@ func preCalc(pInfo *PodInfo) error {
 			decls.NewVariable(defaultCELVar, types.DynType)))
 	if err != nil {
 		klog.Errorf("error while creating new CEL env: %s", err.Error())
-		return err
+		return fmt.Errorf("creating CEL env: %w", err)
 	}
 	pInfo.Env = env
+	pInfo.programCache = make(map[string]cel.Program)
 	return nil
 }
 
-func evaluateCEL(obj map[string]any, env *cel.Env, rule string) (int64, error) {
+func evaluateCEL(pInfo *PodInfo, rule string) (int64, error) {
 	if rule == "" {
 		return -1, nil
 	}
 
-	parseInt, err := strconv.ParseInt(rule, 10, 64)
-	if err == nil {
+	if parseInt, err := strconv.ParseInt(rule, 10, 64); err == nil {
 		return parseInt, nil
 	}
-	ast, iss := env.Compile(rule)
-	if iss != nil && iss.Err() != nil {
-		klog.Errorf("CEL compile error %s", iss.Err())
-		return 0, iss.Err()
+
+	program, ok := pInfo.programCache[rule]
+	if !ok {
+		ast, iss := pInfo.Env.Compile(rule)
+		if iss != nil && iss.Err() != nil {
+			klog.Errorf("CEL compile error %s", iss.Err())
+			return 0, fmt.Errorf("CEL compile: %w", iss.Err())
+		}
+		checked, iss := pInfo.Env.Check(ast)
+		if iss != nil && iss.Err() != nil {
+			klog.Errorf("CEL check error %s", iss.Err())
+			return 0, fmt.Errorf("CEL check: %w", iss.Err())
+		}
+		prog, err := pInfo.Env.Program(checked)
+		if err != nil {
+			klog.Errorf("CEL program error %s", err.Error())
+			return 0, fmt.Errorf("CEL program: %w", err)
+		}
+		pInfo.programCache[rule] = prog
+		program = prog
 	}
 
-	checked, iss := env.Check(ast)
-	if iss != nil && iss.Err() != nil {
-		klog.Errorf("CEL check error %s", iss.Err())
-		return 0, iss.Err()
-	}
-	program, err := env.Program(checked)
-	if err != nil {
-		klog.Errorf("CEL program error %s", err.Error())
-		return 0, err
-	}
-
-	res := make(map[string]any)
-	res[defaultCELVar] = obj
-
-	val, _, err := program.Eval(res)
+	val, _, err := program.Eval(map[string]any{defaultCELVar: pInfo.Obj})
 	if err != nil {
 		klog.Errorf("CEL eval error %s", err.Error())
-		return 0, err
+		return 0, fmt.Errorf("CEL eval: %w", err)
 	}
-	v, ok := val.Value().(int64)
-	if !ok {
-		return 0, fmt.Errorf("CEL expression must return int64, got %T", val.Value())
+	switch v := val.Value().(type) {
+	case int64:
+		return v, nil
+	case int:
+		return int64(v), nil
+	case int32:
+		return int64(v), nil
+	case uint64:
+		return int64(v), nil
+	default:
+		return 0, fmt.Errorf("CEL expression must return integer, got %T", val.Value())
 	}
-	return v, nil
 }
