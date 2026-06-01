@@ -288,7 +288,7 @@ func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, e
 			return i, nil
 		}
 	}
-	return 0, fmt.Errorf("invalid domains %v, mismatched with podIndex %v", rule.Domains, pInfo.PodIndex)
+	return 0, fmt.Errorf("invalid domains %v, mismatched with podIndex %v of placement policy %q", rule.Domains, pInfo.PodIndex, pInfo.PlacementPolicy.Name)
 }
 
 func countPodForTopology(terms []v1.NodeSelectorTerm, topologyKey string, count func(string)) {
@@ -331,7 +331,7 @@ func preCalc(pInfo *PodInfo) error {
 	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(pInfo.PetSet)
 	if err != nil {
 		klog.Errorf("error while converting to unstructured: %s", err.Error())
-		return err
+		return fmt.Errorf("converting PetSet to unstructured: %w", err)
 	}
 	pInfo.Obj = obj
 
@@ -340,7 +340,7 @@ func preCalc(pInfo *PodInfo) error {
 			decls.NewVariable(defaultCELVar, types.DynType)))
 	if err != nil {
 		klog.Errorf("error while creating new CEL env: %s", err.Error())
-		return err
+		return fmt.Errorf("creating CEL env: %w", err)
 	}
 	pInfo.Env = env
 	return nil
