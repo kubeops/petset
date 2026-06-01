@@ -211,6 +211,12 @@ func setNodeAffinityFromPlacement(podSpec v1.PodSpec, pInfo PodInfo) (v1.PodSpec
 			Values:   rule.Domains[domainIndex].Values,
 		}
 		if rule.WhenUnsatisfiable == v1.DoNotSchedule {
+			for _, existing := range singleRequiredTerm.MatchExpressions {
+				if existing.Key == req.Key {
+					klog.Warningf("placement policy %s: duplicate DoNotSchedule rule for topology key %q; previous rule values will be overwritten", pInfo.PlacementPolicy.Name, req.Key)
+					break
+				}
+			}
 			singleRequiredTerm.MatchExpressions = UpsertNodeSelectorRequirements(singleRequiredTerm.MatchExpressions, req)
 		}
 		if rule.WhenUnsatisfiable == v1.ScheduleAnyway {
