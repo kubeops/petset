@@ -40,6 +40,7 @@ type PodInfo struct {
 	PodList         *v1.PodList
 	Obj             map[string]any
 	Env             *cel.Env
+	programCache    map[string]cel.Program
 }
 
 func NewPodInfo(set *api.PetSet, template *api.PodTemplateSpec, place *api.PlacementPolicy, podIndex int, podList *v1.PodList) PodInfo {
@@ -246,7 +247,7 @@ func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, e
 	klog.V(4).Infof("placement policy %s: %+v ; podIndex=%v, rule=%v", pInfo.PlacementPolicy.Name, pInfo.PlacementPolicy.Spec, pInfo.PodIndex, rule)
 	calculatedDomains := make([]calculatedDomain, 0)
 	for _, domain := range rule.Domains {
-		eval, err := evaluateCEL(pInfo.Obj, pInfo.Env, domain.Replicas)
+		eval, err := evaluateCEL(&pInfo, domain.Replicas)
 		if err != nil {
 			return 0, err
 		}
@@ -343,46 +344,55 @@ func preCalc(pInfo *PodInfo) error {
 		return fmt.Errorf("creating CEL env: %w", err)
 	}
 	pInfo.Env = env
+	pInfo.programCache = make(map[string]cel.Program)
 	return nil
 }
 
-func evaluateCEL(obj map[string]any, env *cel.Env, rule string) (int64, error) {
+func evaluateCEL(pInfo *PodInfo, rule string) (int64, error) {
 	if rule == "" {
 		return -1, nil
 	}
 
-	parseInt, err := strconv.ParseInt(rule, 10, 64)
-	if err == nil {
+	if parseInt, err := strconv.ParseInt(rule, 10, 64); err == nil {
 		return parseInt, nil
 	}
-	ast, iss := env.Compile(rule)
-	if iss != nil && iss.Err() != nil {
-		klog.Errorf("CEL compile error %s", iss.Err())
-		return 0, iss.Err()
+
+	program, ok := pInfo.programCache[rule]
+	if !ok {
+		ast, iss := pInfo.Env.Compile(rule)
+		if iss != nil && iss.Err() != nil {
+			klog.Errorf("CEL compile error %s", iss.Err())
+			return 0, fmt.Errorf("CEL compile: %w", iss.Err())
+		}
+		checked, iss := pInfo.Env.Check(ast)
+		if iss != nil && iss.Err() != nil {
+			klog.Errorf("CEL check error %s", iss.Err())
+			return 0, fmt.Errorf("CEL check: %w", iss.Err())
+		}
+		prog, err := pInfo.Env.Program(checked)
+		if err != nil {
+			klog.Errorf("CEL program error %s", err.Error())
+			return 0, fmt.Errorf("CEL program: %w", err)
+		}
+		pInfo.programCache[rule] = prog
+		program = prog
 	}
 
-	checked, iss := env.Check(ast)
-	if iss != nil && iss.Err() != nil {
-		klog.Errorf("CEL check error %s", iss.Err())
-		return 0, iss.Err()
-	}
-	program, err := env.Program(checked)
-	if err != nil {
-		klog.Errorf("CEL program error %s", err.Error())
-		return 0, err
-	}
-
-	res := make(map[string]any)
-	res[defaultCELVar] = obj
-
-	val, _, err := program.Eval(res)
+	val, _, err := program.Eval(map[string]any{defaultCELVar: pInfo.Obj})
 	if err != nil {
 		klog.Errorf("CEL eval error %s", err.Error())
-		return 0, err
+		return 0, fmt.Errorf("CEL eval: %w", err)
 	}
-	v, ok := val.Value().(int64)
-	if !ok {
-		return 0, fmt.Errorf("CEL expression must return int64, got %T", val.Value())
+	switch v := val.Value().(type) {
+	case int64:
+		return v, nil
+	case int:
+		return int64(v), nil
+	case int32:
+		return int64(v), nil
+	case uint64:
+		return int64(v), nil
+	default:
+		return 0, fmt.Errorf("CEL expression must return integer, got %T", val.Value())
 	}
-	return v, nil
 }
