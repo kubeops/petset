@@ -237,7 +237,7 @@ type calculatedDomain struct {
 }
 
 func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, error) {
-	klog.Infof("placement policy %s: %+v ; podIndex=%v, rule=%v \n", pInfo.PlacementPolicy.Name, pInfo.PlacementPolicy.Spec, pInfo.PodIndex, rule)
+	klog.V(4).Infof("placement policy %s: %+v ; podIndex=%v, rule=%v", pInfo.PlacementPolicy.Name, pInfo.PlacementPolicy.Spec, pInfo.PodIndex, rule)
 	calculatedDomains := make([]calculatedDomain, 0)
 	for _, domain := range rule.Domains {
 		eval, err := evaluateCEL(pInfo.Obj, pInfo.Env, domain.Replicas)
@@ -249,7 +249,7 @@ func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, e
 			replicas: eval,
 		})
 	}
-	klog.Infof("calculated domains: %v", calculatedDomains)
+	klog.V(4).Infof("calculated domains: %v", calculatedDomains)
 
 	updateAssignedCount := func(val string) {
 		for i := range calculatedDomains {
