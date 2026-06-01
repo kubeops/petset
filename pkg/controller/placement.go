@@ -274,26 +274,9 @@ func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, e
 			if aff.RequiredDuringSchedulingIgnoredDuringExecution == nil {
 				continue
 			}
-			for _, term := range aff.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
-				for _, req := range term.MatchExpressions {
-					if req.Key == rule.TopologyKey {
-						updateAssignedCount(strings.Join(req.Values, ","))
-						break
-					}
-				}
-			}
+			countPodForTopology(aff.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms, rule.TopologyKey, updateAssignedCount)
 		} else {
-			if aff.PreferredDuringSchedulingIgnoredDuringExecution == nil {
-				continue
-			}
-			for _, term := range aff.PreferredDuringSchedulingIgnoredDuringExecution {
-				for _, req := range term.Preference.MatchExpressions {
-					if req.Key == rule.TopologyKey {
-						updateAssignedCount(strings.Join(req.Values, ","))
-						break
-					}
-				}
-			}
+			countPodForPreferredTopology(aff.PreferredDuringSchedulingIgnoredDuringExecution, rule.TopologyKey, updateAssignedCount)
 		}
 	}
 
@@ -306,6 +289,28 @@ func getAppropriateDomainIndex(rule api.NodeAffinityRule, pInfo PodInfo) (int, e
 		}
 	}
 	return 0, fmt.Errorf("invalid domains %v, mismatched with podIndex %v", rule.Domains, pInfo.PodIndex)
+}
+
+func countPodForTopology(terms []v1.NodeSelectorTerm, topologyKey string, count func(string)) {
+	for _, term := range terms {
+		for _, req := range term.MatchExpressions {
+			if req.Key == topologyKey {
+				count(strings.Join(req.Values, ","))
+				return
+			}
+		}
+	}
+}
+
+func countPodForPreferredTopology(terms []v1.PreferredSchedulingTerm, topologyKey string, count func(string)) {
+	for _, term := range terms {
+		for _, req := range term.Preference.MatchExpressions {
+			if req.Key == topologyKey {
+				count(strings.Join(req.Values, ","))
+				return
+			}
+		}
+	}
 }
 
 func UpsertNodeSelectorRequirements(reqList []v1.NodeSelectorRequirement, req v1.NodeSelectorRequirement) []v1.NodeSelectorRequirement {
