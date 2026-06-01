@@ -101,7 +101,7 @@ func setSpreadConstraintsFromPlacement(podSpec v1.PodSpec, pInfo PodInfo) v1.Pod
 
 func UpsertTopologySpreadConstraint(lst []v1.TopologySpreadConstraint, tsc v1.TopologySpreadConstraint) []v1.TopologySpreadConstraint {
 	for i, constraint := range lst {
-		if constraint.TopologyKey == tsc.TopologyKey && constraint.WhenUnsatisfiable == tsc.WhenUnsatisfiable {
+		if constraint.TopologyKey == tsc.TopologyKey {
 			lst[i] = tsc
 			return lst
 		}
