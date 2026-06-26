@@ -835,7 +835,7 @@ func TestStaleOwnerRefOnScaleup(t *testing.T) {
 			WhenDeleted: apps.DeletePersistentVolumeClaimRetentionPolicyType,
 		},
 	} {
-		onPolicy := func(msg string, args ...interface{}) string {
+		onPolicy := func(msg string, args ...any) string {
 			return fmt.Sprintf(fmt.Sprintf("(%s) %s", policy, msg), args...)
 		}
 		set := newPetSet(3)

@@ -202,7 +202,7 @@ type fakeIndexer struct {
 	getError error
 }
 
-func (f *fakeIndexer) GetByKey(key string) (interface{}, bool, error) {
+func (f *fakeIndexer) GetByKey(key string) (any, bool, error) {
 	return nil, false, f.getError
 }
 

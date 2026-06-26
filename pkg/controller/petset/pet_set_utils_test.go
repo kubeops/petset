@@ -46,10 +46,10 @@ import (
 type noopRecorder struct{}
 
 func (r *noopRecorder) Event(object runtime.Object, eventtype, reason, message string) {}
-func (r *noopRecorder) Eventf(object runtime.Object, eventtype, reason, messageFmt string, args ...interface{}) {
+func (r *noopRecorder) Eventf(object runtime.Object, eventtype, reason, messageFmt string, args ...any) {
 }
 
-func (r *noopRecorder) AnnotatedEventf(object runtime.Object, annotations map[string]string, eventtype, reason, messageFmt string, args ...interface{}) {
+func (r *noopRecorder) AnnotatedEventf(object runtime.Object, annotations map[string]string, eventtype, reason, messageFmt string, args ...any) {
 }
 
 // getClaimPodName gets the name of the Pod associated with the Claim, or an empty string if this doesn't look matching.

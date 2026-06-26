@@ -2953,7 +2953,7 @@ func checkClaimInvarients(set *api.PetSet, pod *v1.Pod, claim *v1.PersistentVolu
 	return nil
 }
 
-func fakeResourceVersion(object interface{}) {
+func fakeResourceVersion(object any) {
 	obj, isObj := object.(metav1.Object)
 	if !isObj {
 		return
