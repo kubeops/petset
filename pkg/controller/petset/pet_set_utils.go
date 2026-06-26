@@ -34,10 +34,21 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 )
+
+func init() {
+	// patchCodec serializes PetSets into ControllerRevisions using the client-go
+	// global scheme, so the PetSet/PlacementPolicy types must be registered there.
+	// Register them here rather than relying on a caller (e.g. cmd wiring) to do
+	// it; otherwise constructing the controller through any other path panics with
+	// "no kind is registered for the type v1.PetSet" the first time a revision is
+	// created.
+	utilruntime.Must(api.AddToScheme(scheme.Scheme))
+}
 
 var patchCodec = scheme.Codecs.LegacyCodec(api.SchemeGroupVersion)
 
