@@ -17,21 +17,18 @@ limitations under the License.
 package cmds
 
 import (
-	api "kubeops.dev/petset/apis/apps/v1"
-
 	"github.com/spf13/cobra"
 	v "gomodules.xyz/x/version"
 	genericapiserver "k8s.io/apiserver/pkg/server"
-	clientscheme "k8s.io/client-go/kubernetes/scheme"
 )
 
 func NewRootCmd() *cobra.Command {
+	// The PetSet/PlacementPolicy API types are registered with the client-go
+	// scheme via the petset controller package's init(), so there is no need to
+	// do it here in a PersistentPreRunE hook.
 	rootCmd := &cobra.Command{
 		Use:               "petset",
 		DisableAutoGenTag: true,
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			return api.AddToScheme(clientscheme.Scheme)
-		},
 	}
 	rootCmd.AddCommand(v.NewCmdVersion())
 

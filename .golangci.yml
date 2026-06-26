@@ -3,6 +3,22 @@ linters:
   default: standard
   enable:
     - unparam
+  exclusions:
+    rules:
+      # The controller test files are kept close to the upstream Kubernetes
+      # StatefulSet controller tests, which freely ignore errors from in-memory
+      # fake stores and use helper signatures that trip unparam. Relax these
+      # checks for test files so the suite stays rebasable against upstream.
+      - path: _test\.go
+        linters:
+          - errcheck
+          - unparam
+      # QF1008 (remove embedded field from selector) is a stylistic quickfix;
+      # the upstream tests reference .ObjectMeta explicitly.
+      - path: _test\.go
+        linters:
+          - staticcheck
+        text: "QF1008:"
 
 formatters:
   enable:
