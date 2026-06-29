@@ -777,35 +777,45 @@ func zeroPodResources(spec *v1.PodSpec) {
 	spec.Resources = nil
 }
 
-// onlyResourcesDiffer decodes the update revision to a PodTemplateSpec, zeroes
-// every container's Resources (and the pod-level Resources) on both a copy of the
-// live pod's container set and the update-revision container set, and deep-compares
-// them. Equal => the ONLY difference between the pod and the update revision is
-// resources, so the pod is an in-place candidate. Any non-resource container change
-// (image, env, args, probes, mounts, ...) makes it ineligible.
-func onlyResourcesDiffer(set *api.PetSet, pod *v1.Pod, updateRevision *apps.ControllerRevision) (bool, error) {
-	desiredSpec, err := updateRevisionPodSpec(set, updateRevision)
+// onlyResourcesDiffer renders the pod's CURRENT revision and the update revision and
+// compares the whole pod specs with resources zeroed. Comparing two rendered revisions
+// (instead of the live pod against a template) cancels apiserver defaulting noise, and
+// comparing the FULL PodSpec (not just containers) guarantees that any non-resource
+// change (volumes, affinity, tolerations, nodeSelector, securityContext, template
+// labels, ...) makes the pod ineligible, so an in-place resize can never silently drop
+// such a change. Equal => the ONLY difference between the revisions is resources.
+func onlyResourcesDiffer(set *api.PetSet, pod *v1.Pod, currentRevision, updateRevision *apps.ControllerRevision) (bool, error) {
+	// The pod is being updated FROM currentRevision TO updateRevision. The callers only
+	// reach this for pods not at updateRevision, which in the PetSet model are at
+	// currentRevision; verify that, and otherwise fall back to delete-and-recreate.
+	if currentRevision == nil || getPodRevision(pod) != currentRevision.Name {
+		return false, nil
+	}
+	curSpec, err := updateRevisionPodSpec(set, currentRevision)
 	if err != nil {
 		return false, err
 	}
-	live := pod.Spec.DeepCopy()
-	upd := desiredSpec.DeepCopy()
-	zeroPodResources(live)
+	updSpec, err := updateRevisionPodSpec(set, updateRevision)
+	if err != nil {
+		return false, err
+	}
+	cur := curSpec.DeepCopy()
+	upd := updSpec.DeepCopy()
+	zeroPodResources(cur)
 	zeroPodResources(upd)
-	return apiequality.Semantic.DeepEqual(live.Containers, upd.Containers) &&
-		apiequality.Semantic.DeepEqual(live.InitContainers, upd.InitContainers), nil
+	return apiequality.Semantic.DeepEqual(cur, upd), nil
 }
 
 // inPlaceResizeEligible reports whether pod can be resized in place to the update
 // revision instead of being deleted and recreated.
-func inPlaceResizeEligible(set *api.PetSet, pod *v1.Pod, updateRevision *apps.ControllerRevision) (bool, error) {
+func inPlaceResizeEligible(set *api.PetSet, pod *v1.Pod, currentRevision, updateRevision *apps.ControllerRevision) (bool, error) {
 	if !inPlaceVerticalScalingEnabled() {
 		return false, nil
 	}
 	if !identityMatches(set, pod) || !storageMatches(set, pod) {
 		return false, nil
 	}
-	only, err := onlyResourcesDiffer(set, pod, updateRevision)
+	only, err := onlyResourcesDiffer(set, pod, currentRevision, updateRevision)
 	if err != nil {
 		return false, err
 	}

@@ -715,6 +715,7 @@ func (ssc *defaultPetSetControl) updatePetSet(
 			ssc,
 			set,
 			replicas,
+			currentRevision,
 			updateRevision,
 			status,
 		)
@@ -732,7 +733,7 @@ func (ssc *defaultPetSetControl) updatePetSet(
 		if getPodRevision(replicas[target]) != updateRevision.Name && !isTerminating(replicas[target]) {
 			// If the only difference from the update revision is container resources,
 			// resize the running pod in place instead of deleting it (Sec 6.2).
-			if eligible, err := inPlaceResizeEligible(set, replicas[target], updateRevision); err != nil {
+			if eligible, err := inPlaceResizeEligible(set, replicas[target], currentRevision, updateRevision); err != nil {
 				return &status, err
 			} else if eligible {
 				logger.V(2).Info("Pod of PetSet is resizing in place for update",
@@ -818,6 +819,7 @@ func updatePetSetAfterInvariantEstablished(
 	ssc *defaultPetSetControl,
 	set *api.PetSet,
 	replicas []*v1.Pod,
+	currentRevision *apps.ControllerRevision,
 	updateRevision *apps.ControllerRevision,
 	status apps.StatefulSetStatus,
 ) (*apps.StatefulSetStatus, error) {
@@ -869,7 +871,7 @@ func updatePetSetAfterInvariantEstablished(
 		if getPodRevision(replicas[target]) != updateRevision.Name && !isTerminating(replicas[target]) {
 			// If the only difference from the update revision is container resources,
 			// resize the running pod in place instead of deleting it (Sec 6.2).
-			if eligible, err := inPlaceResizeEligible(set, replicas[target], updateRevision); err != nil {
+			if eligible, err := inPlaceResizeEligible(set, replicas[target], currentRevision, updateRevision); err != nil {
 				return &status, err
 			} else if eligible {
 				logger.V(2).Info("PetSet resizing Pod in place for update",
@@ -878,8 +880,11 @@ func updatePetSetAfterInvariantEstablished(
 				if err := ssc.podControl.ResizeStatefulPod(set, replicas[target], updateRevision); err != nil {
 					return &status, err
 				}
-				// actuation + relabel happen across reconciles; do NOT delete or
-				// count this pod against the maxUnavailable budget.
+				// An in-place resize can be disruptive (a RestartContainer resizePolicy, or a
+				// readiness blip), so it consumes the maxUnavailable budget exactly like a
+				// delete: count it and let the loop's deletedPods<podsToDelete guard cap how
+				// many pods are resized concurrently. Do NOT delete the pod.
+				deletedPods++
 				continue
 			}
 			// delete the Pod if it is healthy and the revision doesnt match the target

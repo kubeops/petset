@@ -105,19 +105,37 @@ func TestOnlyResourcesDiffer(t *testing.T) {
 			},
 			wantOnly: false,
 		},
+		{
+			name: "non-container pod-spec change (nodeSelector) is NOT resource-only",
+			mutate: func(set *api.PetSet) {
+				set.Spec.Template.Spec.NodeSelector = map[string]string{"disktype": "ssd"}
+			},
+			wantOnly: false,
+		},
+		{
+			name: "non-container pod-spec change (volume) alongside resources is NOT resource-only",
+			mutate: func(set *api.PetSet) {
+				set.Spec.Template.Spec.Volumes = append(set.Spec.Template.Spec.Volumes,
+					v1.Volume{Name: "extra", VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}})
+				set.Spec.Template.Spec.Containers[0].Resources.Requests = resList("200m", "512Mi")
+			},
+			wantOnly: false,
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			set := inPlaceTestSet()
-			// The live pod is built from the original (current) revision.
+			// The live pod is at the current revision.
+			curRev := newRevisionOrDie(set, 1)
 			pod := newTestPetSetPod(set, 0)
+			setPodRevision(pod, curRev.Name)
 
 			updSet := set.DeepCopy()
 			tc.mutate(updSet)
 			updRev := newRevisionOrDie(updSet, 2)
 
-			only, err := onlyResourcesDiffer(set, pod, updRev)
+			only, err := onlyResourcesDiffer(set, pod, curRev, updRev)
 			if err != nil {
 				t.Fatalf("onlyResourcesDiffer returned error: %v", err)
 			}
@@ -130,7 +148,9 @@ func TestOnlyResourcesDiffer(t *testing.T) {
 
 func TestInPlaceResizeEligibleGateOff(t *testing.T) {
 	set := inPlaceTestSet()
+	curRev := newRevisionOrDie(set, 1)
 	pod := newTestPetSetPod(set, 0)
+	setPodRevision(pod, curRev.Name)
 
 	updSet := set.DeepCopy()
 	updSet.Spec.Template.Spec.Containers[0].Resources.Requests = resList("200m", "512Mi")
@@ -138,13 +158,13 @@ func TestInPlaceResizeEligibleGateOff(t *testing.T) {
 
 	// Gate on => eligible (resource-only diff).
 	featuregatetesting.SetFeatureGateDuringTest(t, features.DefaultFeatureGate, features.InPlaceVerticalScaling, true)
-	if eligible, err := inPlaceResizeEligible(set, pod, updRev); err != nil || !eligible {
+	if eligible, err := inPlaceResizeEligible(set, pod, curRev, updRev); err != nil || !eligible {
 		t.Fatalf("gate on: inPlaceResizeEligible = (%v, %v), want (true, nil)", eligible, err)
 	}
 
 	// Gate off => never eligible.
 	featuregatetesting.SetFeatureGateDuringTest(t, features.DefaultFeatureGate, features.InPlaceVerticalScaling, false)
-	if eligible, err := inPlaceResizeEligible(set, pod, updRev); err != nil || eligible {
+	if eligible, err := inPlaceResizeEligible(set, pod, curRev, updRev); err != nil || eligible {
 		t.Fatalf("gate off: inPlaceResizeEligible = (%v, %v), want (false, nil)", eligible, err)
 	}
 }

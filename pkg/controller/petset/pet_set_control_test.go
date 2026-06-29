@@ -1259,7 +1259,7 @@ func TestPetSetControlRollingUpdateWithMaxUnavailableInOrderedModeVerifyInvarian
 
 			// try to update the petset
 			// this function is only called in main code when feature gate is enabled
-			if _, err = updatePetSetAfterInvariantEstablished(context.TODO(), ssc.(*defaultPetSetControl), set, originalPods, updateRevision, status); err != nil {
+			if _, err = updatePetSetAfterInvariantEstablished(context.TODO(), ssc.(*defaultPetSetControl), set, originalPods, &apps.ControllerRevision{}, updateRevision, status); err != nil {
 				t.Fatal(err)
 			}
 			pods, err := spc.podsLister.Pods(set.Namespace).List(selector)
