@@ -49,6 +49,7 @@ type StatefulPodControlObjectManager interface {
 	CreatePod(ctx context.Context, pod *v1.Pod, set *api.PetSet) error
 	GetPod(namespace, podName string, set *api.PetSet) (*v1.Pod, error)
 	UpdatePod(pod *v1.Pod, set *api.PetSet) error
+	ResizePod(ctx context.Context, pod *v1.Pod, set *api.PetSet) error
 	DeletePod(pod *v1.Pod, set *api.PetSet) error
 	ListPods(ns, labels string, set *api.PetSet) (*v1.PodList, error)
 	CreateClaim(claim *v1.PersistentVolumeClaim, set *api.PetSet) error
@@ -122,6 +123,18 @@ func (om *realStatefulPodControlObjectManager) UpdatePod(pod *v1.Pod, set *api.P
 		return om.UpdatePodManifestWork(context.TODO(), pod)
 	}
 	_, err := om.client.CoreV1().Pods(pod.Namespace).Update(context.TODO(), pod, metav1.UpdateOptions{})
+	return err
+}
+
+// ResizePod actuates a resource-only change on a running pod through the
+// pods/resize subresource. Distributed (manifest-work) PetSets do not support
+// in-place resize, so the returned error is treated as unsupported by the caller,
+// which falls back to delete-and-recreate.
+func (om *realStatefulPodControlObjectManager) ResizePod(ctx context.Context, pod *v1.Pod, set *api.PetSet) error {
+	if set.Spec.Distributed {
+		return apierrors.NewMethodNotSupported(v1.Resource("pods"), "resize")
+	}
+	_, err := om.client.CoreV1().Pods(pod.Namespace).UpdateResize(ctx, pod.Name, pod, metav1.UpdateOptions{})
 	return err
 }
 
@@ -264,6 +277,98 @@ func (spc *StatefulPodControl) DeleteStatefulPod(set *api.PetSet, pod *v1.Pod) e
 	err := spc.objectMgr.DeletePod(pod, set)
 	spc.recordPodEvent("delete", set, pod, err)
 	return err
+}
+
+// ResizeStatefulPod actuates a resource-only template change on a running pod in
+// place via the pods/resize subresource instead of deleting and recreating it.
+//
+// The method is reconcile-driven and idempotent:
+//   - If the pod's container resources do not yet match the update revision, it
+//     issues the resize and requeues. If the cluster does not support in-place
+//     resize (isResizeUnsupported), it falls back to DeleteStatefulPod so the pod
+//     is recreated with the new resources by the normal path.
+//   - On a later pass, once the resize was already issued, it inspects the kubelet
+//     actuation via resizeState: Infeasible -> fall back to delete; Deferred /
+//     InProgress -> requeue; Done (and the pod is Running+Ready) -> relabel the pod
+//     to the update revision so updatedReplicas accounting converges without ever
+//     deleting the pod.
+func (spc *StatefulPodControl) ResizeStatefulPod(set *api.PetSet, pod *v1.Pod, updateRevision *apps.ControllerRevision) error {
+	desiredSpec, err := updateRevisionPodSpec(set, updateRevision)
+	if err != nil {
+		return err
+	}
+	// Build the target pod (the live pod with the update-revision resources applied).
+	target := pod.DeepCopy()
+	applyResources(target, desiredSpec)
+
+	// 1. Issue the resize if the running pod's resources do not yet match the target.
+	if !resourcesMatch(target, pod) {
+		err := spc.objectMgr.ResizePod(context.TODO(), target, set)
+		if isResizeUnsupported(err) {
+			// The cluster cannot resize in place; recreate the pod the normal way.
+			return spc.DeleteStatefulPod(set, pod)
+		}
+		spc.recordPodEvent("resize", set, pod, err)
+		if err != nil {
+			return err // transient -> requeue
+		}
+		return nil // requeue; check actuation next pass
+	}
+
+	// 2. Resize was requested on an earlier pass; wait on kubelet actuation.
+	switch resizeState(pod) {
+	case resizeInfeasible:
+		// Give up in-place for this pod; let the normal path recreate it so the
+		// scheduler can place it on a node with room.
+		return spc.DeleteStatefulPod(set, pod)
+	case resizeDeferred, resizeInProgress:
+		return nil // requeue
+	case resizeDone:
+		if !isRunningAndReady(pod) {
+			return nil // requeue (covers a container restart during actuation)
+		}
+		// 3. Relabel to the update revision so updatedReplicas accounting is correct.
+		return spc.patchPodRevisionLabel(set, pod, updateRevision.Name)
+	}
+	return nil
+}
+
+// patchPodRevisionLabel sets the pod's controller-revision-hash label (the label
+// getPodRevision reads) to revName so the pod counts as updated, reusing the same
+// UpdatePod plumbing UpdateStatefulPod uses for identity labels.
+func (spc *StatefulPodControl) patchPodRevisionLabel(set *api.PetSet, pod *v1.Pod, revName string) error {
+	if getPodRevision(pod) == revName {
+		return nil
+	}
+	updated := pod.DeepCopy()
+	setPodRevision(updated, revName)
+	err := spc.objectMgr.UpdatePod(updated, set)
+	spc.recordPodEvent("update", set, pod, err)
+	return err
+}
+
+// isResizeUnsupported reports whether err from the pods/resize subresource means
+// the cluster cannot perform in-place pod resize (so the caller should fall back to
+// delete-and-recreate) rather than a transient error worth requeuing. This is true
+// when the subresource is absent (NotFound / MethodNotSupported) or when the resize
+// is rejected because the cluster's InPlacePodVerticalScaling feature gate is off
+// (the apiserver forbids/invalidates the field change).
+func isResizeUnsupported(err error) bool {
+	if err == nil {
+		return false
+	}
+	if apierrors.IsNotFound(err) || apierrors.IsMethodNotSupported(err) {
+		return true
+	}
+	if apierrors.IsInvalid(err) || apierrors.IsBadRequest(err) || apierrors.IsForbidden(err) {
+		msg := err.Error()
+		if strings.Contains(msg, "InPlacePodVerticalScaling") ||
+			strings.Contains(msg, "may not be changed") ||
+			strings.Contains(msg, "may not change fields other than") {
+			return true
+		}
+	}
+	return false
 }
 
 func (spc *StatefulPodControl) ListStatefulPods(ns, labels string, set *api.PetSet) (*v1.PodList, error) {

@@ -730,6 +730,19 @@ func (ssc *defaultPetSetControl) updatePetSet(
 
 		// delete the Pod if it is not already terminating and does not match the update revision.
 		if getPodRevision(replicas[target]) != updateRevision.Name && !isTerminating(replicas[target]) {
+			// If the only difference from the update revision is container resources,
+			// resize the running pod in place instead of deleting it (Sec 6.2).
+			if eligible, err := inPlaceResizeEligible(set, replicas[target], updateRevision); err != nil {
+				return &status, err
+			} else if eligible {
+				logger.V(2).Info("Pod of PetSet is resizing in place for update",
+					"statefulSet", klog.KObj(set), "pod", klog.KObj(replicas[target]))
+				if err := ssc.podControl.ResizeStatefulPod(set, replicas[target], updateRevision); err != nil {
+					return &status, err
+				}
+				// actuation + relabel happen across reconciles; do NOT delete.
+				return &status, nil
+			}
 			logger.V(2).Info("Pod of PetSet is terminating for update",
 				"statefulSet", klog.KObj(set), "pod", klog.KObj(replicas[target]))
 			if err := ssc.podControl.DeleteStatefulPod(set, replicas[target]); err != nil {
@@ -854,6 +867,21 @@ func updatePetSetAfterInvariantEstablished(
 	for target := len(replicas) - 1; target >= updateMin && deletedPods < podsToDelete; target-- {
 		// delete the Pod if it is healthy and the revision doesnt match the target
 		if getPodRevision(replicas[target]) != updateRevision.Name && !isTerminating(replicas[target]) {
+			// If the only difference from the update revision is container resources,
+			// resize the running pod in place instead of deleting it (Sec 6.2).
+			if eligible, err := inPlaceResizeEligible(set, replicas[target], updateRevision); err != nil {
+				return &status, err
+			} else if eligible {
+				logger.V(2).Info("PetSet resizing Pod in place for update",
+					"statefulSet", klog.KObj(set),
+					"pod", klog.KObj(replicas[target]))
+				if err := ssc.podControl.ResizeStatefulPod(set, replicas[target], updateRevision); err != nil {
+					return &status, err
+				}
+				// actuation + relabel happen across reconciles; do NOT delete or
+				// count this pod against the maxUnavailable budget.
+				continue
+			}
 			// delete the Pod if it is healthy and the revision doesnt match the target
 			logger.V(2).Info("PetSet terminating Pod for update",
 				"statefulSet", klog.KObj(set),
