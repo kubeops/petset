@@ -25,7 +25,7 @@ func (c *ClusterSpreadConstraint) Validate() error {
 	if c == nil || c.FailoverPolicy == nil {
 		return nil
 	}
-	members, arbiters, witnesses := 0, 0, 0
+	members, arbiters := 0, 0
 	for i := range c.DistributionRules {
 		r := &c.DistributionRules[i]
 		switch r.Role {
@@ -38,11 +38,6 @@ func (c *ClusterSpreadConstraint) Validate() error {
 			arbiters++
 			if len(r.ReplicaIndices) != 0 {
 				return fmt.Errorf("distributionRule for cluster %q has role Arbiter but carries replicaIndices (an arbiter holds no data)", r.ClusterName)
-			}
-		case DCRoleWitness:
-			witnesses++
-			if len(r.ReplicaIndices) == 0 {
-				return fmt.Errorf("distributionRule for cluster %q has role Witness but no replicaIndices (a witness is data bearing)", r.ClusterName)
 			}
 		default:
 			return fmt.Errorf("distributionRule for cluster %q has unknown role %q", r.ClusterName, r.Role)
@@ -70,8 +65,8 @@ func (c *ClusterSpreadConstraint) Validate() error {
 	case "":
 		// derived, nothing to check
 	case FailoverModeTwoDC:
-		if members != 2 || (arbiters+witnesses) < 1 {
-			return fmt.Errorf("mode TwoDC requires exactly two Members and at least one Arbiter or Witness, found members=%d arbiters=%d witnesses=%d", members, arbiters, witnesses)
+		if members != 2 || arbiters < 1 {
+			return fmt.Errorf("mode TwoDC requires exactly two Members and at least one Arbiter, found members=%d arbiters=%d", members, arbiters)
 		}
 	case FailoverModeThreeDC:
 		if members < 3 {

@@ -101,10 +101,8 @@ type DistributionRule struct {
 	// Role describes how this data center participates in DC/DR failover.
 	// Member: data bearing and primary eligible (a candidate for the primary DC).
 	// Arbiter: votes only, holds no data, never primary.
-	// Witness: data bearing but never primary (for engines like MongoDB whose
-	// witness must carry data to satisfy majority writes, yet must not be elected).
 	// Defaults to Member when empty.
-	// +kubebuilder:validation:Enum=Member;Arbiter;Witness
+	// +kubebuilder:validation:Enum=Member;Arbiter
 	// +optional
 	Role DCRole `json:"role,omitempty"`
 }
@@ -117,15 +115,13 @@ const (
 	DCRoleMember DCRole = "Member"
 	// DCRoleArbiter votes only, holds no data, and is never primary.
 	DCRoleArbiter DCRole = "Arbiter"
-	// DCRoleWitness is data bearing but never primary.
-	DCRoleWitness DCRole = "Witness"
 )
 
 // FailoverMode is the data center topology of a DC/DR deployment.
 type FailoverMode string
 
 const (
-	// FailoverModeTwoDC is two Members plus one Arbiter or Witness.
+	// FailoverModeTwoDC is two Members plus one Arbiter.
 	FailoverModeTwoDC FailoverMode = "TwoDC"
 	// FailoverModeThreeDC is three Members, all primary eligible.
 	FailoverModeThreeDC FailoverMode = "ThreeDC"
@@ -146,7 +142,7 @@ const (
 // FailoverPolicy selects the mode and the failover trigger granularity.
 type FailoverPolicy struct {
 	// Mode is the DC topology. It can be derived from the per rule roles
-	// (two Members plus an Arbiter or Witness is TwoDC, three Members is ThreeDC);
+	// (two Members plus an Arbiter is TwoDC, three Members is ThreeDC);
 	// when set it is validated against the roles.
 	// +kubebuilder:validation:Enum=TwoDC;ThreeDC
 	// +optional

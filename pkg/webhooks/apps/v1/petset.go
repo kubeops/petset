@@ -176,7 +176,7 @@ func (w *PetSetCustomWebhook) validatePlacementPolicy(ctx context.Context, set *
 	if pp.Spec.ClusterSpreadConstraint == nil || pp.Spec.ClusterSpreadConstraint.DistributionRules == nil {
 		return fmt.Errorf("expected an OCM cluster spec for distributed petset in the %v/%v: %v, but got none", api.GroupName, api.ResourceKindPlacementPolicy, pp.Name)
 	}
-	// Validate the DC/DR failover policy and per-DC roles (Member/Arbiter/Witness).
+	// Validate the DC/DR failover policy and per-DC roles (Member/Arbiter).
 	// No-op when the policy is not a DC/DR policy (FailoverPolicy unset).
 	if err := pp.Spec.ClusterSpreadConstraint.Validate(); err != nil {
 		return err
