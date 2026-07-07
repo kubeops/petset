@@ -482,6 +482,17 @@ func ListPodsFromManifestWork(manifestLister manifestlisters.ManifestWorkLister,
 
 	var podItems []v1.Pod
 	for _, mw := range mws {
+		// Same ownership guards as ListPodsManifestWork: selector matching is subset
+		// matching, so a sibling PetSet's ManifestWork (data set vs arbiter) would be
+		// attributed to this set, its virtual pod identity-rewritten or condemned.
+		// The owner stamp disambiguates; unlabeled pre-upgrade ManifestWorks must at
+		// least parse as <set.Name>-<ordinal>.
+		if owner, ok := mw.Labels[api.PetSetNameLabel]; ok && owner != set.Name {
+			continue
+		}
+		if getParentName(&v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: mw.Name}}) != set.Name {
+			continue
+		}
 		for i, manifest := range mw.Spec.Workload.Manifests {
 			unstructuredObj := &unstructured.Unstructured{}
 			if err := unstructuredObj.UnmarshalJSON(manifest.Raw); err != nil {
