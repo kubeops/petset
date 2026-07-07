@@ -55,6 +55,9 @@ func (om *realStatefulPodControlObjectManager) CreatePodManifestWork(ctx context
 	// Adding an extra label to only delete the pod and ignore deleting pvc
 	labels := DeepCopyLabel(pod.Labels)
 	labels[api.ManifestWorkRoleLabel] = api.RolePod
+	// Stamp the owner so ManifestWork->PetSet resolution never relies on selector
+	// subset matching alone (ambiguous between a data set and its arbiter).
+	labels[api.PetSetNameLabel] = set.Name
 
 	mw := &apiworkv1.ManifestWork{
 		ObjectMeta: metav1.ObjectMeta{
@@ -240,6 +243,21 @@ func (om *realStatefulPodControlObjectManager) ListPodsManifestWork(set *api.Pet
 
 	var podItems []v1.Pod
 	for _, mw := range mws {
+		// Selector matching is subset matching: a sibling PetSet's ManifestWork (for
+		// example the arbiter's, whose labels are a superset of the data set's
+		// selector) would be attributed to this set. The owner stamp disambiguates;
+		// unlabeled (pre-upgrade) ManifestWorks keep the selector-only behavior.
+		if owner, ok := mw.Labels[api.PetSetNameLabel]; ok && owner != set.Name {
+			continue
+		}
+		// Identity check for unlabeled (pre-upgrade) ManifestWorks that pass the
+		// selector-only fallback: the MW is named after its pod, which belongs to this
+		// set only if it parses as <set.Name>-<ordinal>. Without this a sibling set
+		// with an overlapping selector (data set vs arbiter) adopts the other's
+		// virtual pods and the controller converges the wrong identity.
+		if getParentName(&v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: mw.Name}}) != set.Name {
+			continue
+		}
 		for i, manifest := range mw.Spec.Workload.Manifests {
 			unstructuredObj := &unstructured.Unstructured{}
 			if err := unstructuredObj.UnmarshalJSON(manifest.Raw); err != nil {
@@ -317,6 +335,7 @@ func (om *realStatefulPodControlObjectManager) CreateClaimManifestWork(set *api.
 	}
 	labels := DeepCopyLabel(claim.Labels)
 	labels[api.ManifestWorkRoleLabel] = api.RolePVC
+	labels[api.PetSetNameLabel] = set.Name
 
 	mw := &apiworkv1.ManifestWork{
 		ObjectMeta: metav1.ObjectMeta{
