@@ -831,7 +831,8 @@ func TestPetSetControlScaleDownDeleteError(t *testing.T) {
 			if set.Status.UpdatedReplicas != 0 {
 				t.Error("Failed to set updatedReplicas to 0")
 			}
-		})
+		},
+	)
 }
 
 func TestPetSetControl_getSetRevisions(t *testing.T) {
@@ -962,7 +963,8 @@ func TestPetSetControl_getSetRevisions(t *testing.T) {
 			for i := range tests {
 				testFn(&tests[i], t)
 			}
-		})
+		},
+	)
 }
 
 func setupPodManagementPolicy(podManagementPolicy apps.PodManagementPolicyType, set *api.PetSet) *api.PetSet {
