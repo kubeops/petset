@@ -303,7 +303,8 @@ func setOwnerRef(target, owner metav1.Object, ownerType *metav1.TypeMeta) bool {
 			Kind:       ownerType.Kind,
 			Name:       owner.GetName(),
 			UID:        owner.GetUID(),
-		})
+		},
+	)
 	target.SetOwnerReferences(ownerRefs)
 	return true
 }

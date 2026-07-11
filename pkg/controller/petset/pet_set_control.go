@@ -264,7 +264,8 @@ func (ssc *defaultPetSetControl) getPetSetRevisions(
 		// Revision of the equivalent revision
 		updateRevision, err = ssc.controllerHistory.UpdateControllerRevision(
 			equalRevisions[equalCount-1],
-			updateRevision.Revision)
+			updateRevision.Revision,
+		)
 		if err != nil {
 			return nil, nil, collisionCount, err
 		}
@@ -421,7 +422,8 @@ func (ssc *defaultPetSetControl) processReplica(
 			updateSet,
 			currentRevision.Name,
 			updateRevision.Name,
-			replicaOrd)
+			replicaOrd,
+		)
 		if err != nil {
 			return true, err
 		}
@@ -452,7 +454,8 @@ func (ssc *defaultPetSetControl) processReplica(
 	if isPending(replicas[i]) {
 		logger.V(4).Info(
 			"PetSet is triggering PVC creation for pending Pod",
-			"statefulSet", klog.KObj(set), "pod", klog.KObj(replicas[i]))
+			"statefulSet", klog.KObj(set), "pod", klog.KObj(replicas[i]),
+		)
 		if err := ssc.podControl.createMissingPersistentVolumeClaims(ctx, set, replicas[i]); err != nil {
 			return true, err
 		}
@@ -619,7 +622,8 @@ func (ssc *defaultPetSetControl) updatePetSet(
 				currentSet,
 				updateSet,
 				currentRevision.Name,
-				updateRevision.Name, ord)
+				updateRevision.Name, ord,
+			)
 			if err != nil {
 				return nil, err
 			}
@@ -711,7 +715,8 @@ func (ssc *defaultPetSetControl) updatePetSet(
 	}
 
 	if features.DefaultFeatureGate.Enabled(features.MaxUnavailablePetSet) {
-		return updatePetSetAfterInvariantEstablished(ctx,
+		return updatePetSetAfterInvariantEstablished(
+			ctx,
 			ssc,
 			set,
 			replicas,

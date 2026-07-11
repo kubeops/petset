@@ -980,7 +980,8 @@ func TestRealHistory_AdoptControllerRevision(t *testing.T) {
 				}
 				b, err := strategicpatch.StrategicMergePatch(
 					[]byte(runtime.EncodeOrDie(clientscheme.Codecs.LegacyCodec(apps.SchemeGroupVersion), test.revision)),
-					action.GetPatch(), test.revision)
+					action.GetPatch(), test.revision,
+				)
 				if err != nil {
 					return true, nil, err
 				}
@@ -1226,11 +1227,13 @@ func TestRealHistory_ReleaseControllerRevision(t *testing.T) {
 				}
 				if !metav1.IsControlledBy(test.revision, test.parent) {
 					return true, nil, errors.NewInvalid(
-						test.revision.GroupVersionKind().GroupKind(), test.revision.Name, nil)
+						test.revision.GroupVersionKind().GroupKind(), test.revision.Name, nil,
+					)
 				}
 				b, err := strategicpatch.StrategicMergePatch(
 					[]byte(runtime.EncodeOrDie(clientscheme.Codecs.LegacyCodec(apps.SchemeGroupVersion), test.revision)),
-					action.GetPatch(), test.revision)
+					action.GetPatch(), test.revision,
+				)
 				if err != nil {
 					return true, nil, err
 				}
