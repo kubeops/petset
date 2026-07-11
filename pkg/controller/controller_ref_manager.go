@@ -570,7 +570,7 @@ type objectMetaForMergePatch struct {
 }
 
 func GenerateDeleteOwnerRefStrategicMergeBytes(dependentUID types.UID, ownerUIDs []types.UID, finalizers ...string) ([]byte, error) {
-	var ownerReferences []map[string]string
+	ownerReferences := make([]map[string]string, 0, len(ownerUIDs))
 	for _, ownerUID := range ownerUIDs {
 		ownerReferences = append(ownerReferences, ownerReference(ownerUID, "delete"))
 	}
