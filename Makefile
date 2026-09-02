@@ -25,7 +25,7 @@ COMPRESS ?= no
 
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS          ?= "crd:crdVersions={v1},allowDangerousTypes=true,generateEmbeddedObjectMeta=true"
-CODE_GENERATOR_IMAGE ?= ghcr.io/appscode/gengo:release-1.32
+CODE_GENERATOR_IMAGE ?= ghcr.io/appscode/gengo:release-1.34
 API_GROUPS           ?= apps:v1
 
 # Where to push the docker image.
@@ -144,23 +144,27 @@ version:
 	@echo commit_hash=$(commit_hash)
 	@echo commit_timestamp=$(commit_timestamp)
 
-# Generate code for Kubernetes types
-.PHONY: clientset
-clientset:
-	@docker run --rm                                            \
-		-u $$(id -u):$$(id -g)                                    \
-		-v /tmp:/.cache                                           \
-		-v $$(pwd):$(DOCKER_REPO_ROOT)                            \
-		-w $(DOCKER_REPO_ROOT)                                    \
-		--env HTTP_PROXY=$(HTTP_PROXY)                            \
-		--env HTTPS_PROXY=$(HTTPS_PROXY)                          \
-		$(CODE_GENERATOR_IMAGE)                                   \
-		/go/src/k8s.io/code-generator/generate-groups.sh          \
-			"client,deepcopy,informer,lister"                       \
-			$(GO_PKG)/$(REPO)/client                                \
-			$(GO_PKG)/$(REPO)/apis                                  \
-			"$(API_GROUPS)"                                         \
-			--go-header-file "./hack/license/go.txt"
+# Generate code for Kubernetes types, using update-codegen.sh -- a generic
+# script bundled into $(CODE_GENERATOR_IMAGE) (see
+# https://github.com/appscodelabs/gengo-builder/blob/master/scripts/update-codegen.sh
+# for the full env-var interface) driving k8s.io/code-generator's
+# kube_codegen.sh toolchain. Generation scope is configured entirely through
+# the env vars below rather than a repo-local copy of this script.
+# Staleness is checked by verify-gen (which re-runs `gen`, including this
+# target, and diffs against HEAD) rather than a separate verify-codegen
+# target.
+.PHONY: update-codegen
+update-codegen:
+	@docker run --rm	                                 \
+		-u $$(id -u):$$(id -g)                           \
+		-v /tmp:/.cache                                  \
+		-v $$(pwd):$(DOCKER_REPO_ROOT)                   \
+		-w $(DOCKER_REPO_ROOT)                           \
+		--env HTTP_PROXY=$(HTTP_PROXY)                   \
+		--env HTTPS_PROXY=$(HTTPS_PROXY)                 \
+		--env API_GROUPS="$(API_GROUPS)"                 \
+		$(CODE_GENERATOR_IMAGE)                          \
+		update-codegen.sh
 
 
 # Generate openapi schema
@@ -179,10 +183,21 @@ openapi-%:
 		$(CODE_GENERATOR_IMAGE)                          \
 		openapi-gen                                      \
 			--v 1 --logtostderr                          \
-			--go-header-file "./hack/license/go.txt" \
-			--input-dirs "$(GO_PKG)/$(REPO)/apis/$(subst _,/,$*),k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/apimachinery/pkg/api/resource,k8s.io/apimachinery/pkg/runtime,k8s.io/apimachinery/pkg/util/intstr,k8s.io/apimachinery/pkg/version,k8s.io/api/core/v1,k8s.io/api/apps/v1,k8s.io/api/rbac/v1,kmodules.xyz/client-go/api/v1" \
-			--output-package "$(GO_PKG)/$(REPO)/apis/$(subst _,/,$*)" \
-			--report-filename .config/api-rules/violation_exceptions.list
+			--go-header-file "./hack/license/go.txt"     \
+			--output-dir "$(DOCKER_REPO_ROOT)/apis/$(subst _,/,$*)" \
+			--output-pkg "$(GO_PKG)/$(REPO)/apis/$(subst _,/,$*)" \
+			--output-file "openapi_generated.go"         \
+			--report-filename .config/api-rules/violation_exceptions.list \
+			$(GO_PKG)/$(REPO)/apis/$(subst _,/,$*) \
+			k8s.io/apimachinery/pkg/apis/meta/v1 \
+			k8s.io/apimachinery/pkg/api/resource \
+			k8s.io/apimachinery/pkg/runtime \
+			k8s.io/apimachinery/pkg/util/intstr \
+			k8s.io/apimachinery/pkg/version \
+			k8s.io/api/core/v1 \
+			k8s.io/api/apps/v1 \
+			k8s.io/api/rbac/v1 \
+			kmodules.xyz/client-go/api/v1
 
 # Generate CRD manifests
 .PHONY: gen-crds
@@ -205,7 +220,7 @@ gen-crds:
 manifests: gen-crds
 
 .PHONY: gen
-gen: clientset manifests # openapi
+gen: update-codegen manifests # openapi
 
 fmt: $(BUILD_DIRS)
 	@docker run                                                 \
