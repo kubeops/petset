@@ -19,104 +19,33 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1 "kubeops.dev/petset/apis/apps/v1"
+	appsv1 "kubeops.dev/petset/client/clientset/versioned/typed/apps/v1"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakePlacementPolicies implements PlacementPolicyInterface
-type FakePlacementPolicies struct {
+// fakePlacementPolicies implements PlacementPolicyInterface
+type fakePlacementPolicies struct {
+	*gentype.FakeClientWithList[*v1.PlacementPolicy, *v1.PlacementPolicyList]
 	Fake *FakeAppsV1
 }
 
-var placementpoliciesResource = v1.SchemeGroupVersion.WithResource("placementpolicies")
-
-var placementpoliciesKind = v1.SchemeGroupVersion.WithKind("PlacementPolicy")
-
-// Get takes name of the placementPolicy, and returns the corresponding placementPolicy object, and an error if there is any.
-func (c *FakePlacementPolicies) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.PlacementPolicy, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(placementpoliciesResource, name), &v1.PlacementPolicy{})
-	if obj == nil {
-		return nil, err
+func newFakePlacementPolicies(fake *FakeAppsV1) appsv1.PlacementPolicyInterface {
+	return &fakePlacementPolicies{
+		gentype.NewFakeClientWithList[*v1.PlacementPolicy, *v1.PlacementPolicyList](
+			fake.Fake,
+			"",
+			v1.SchemeGroupVersion.WithResource("placementpolicies"),
+			v1.SchemeGroupVersion.WithKind("PlacementPolicy"),
+			func() *v1.PlacementPolicy { return &v1.PlacementPolicy{} },
+			func() *v1.PlacementPolicyList { return &v1.PlacementPolicyList{} },
+			func(dst, src *v1.PlacementPolicyList) { dst.ListMeta = src.ListMeta },
+			func(list *v1.PlacementPolicyList) []*v1.PlacementPolicy { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1.PlacementPolicyList, items []*v1.PlacementPolicy) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1.PlacementPolicy), err
-}
-
-// List takes label and field selectors, and returns the list of PlacementPolicies that match those selectors.
-func (c *FakePlacementPolicies) List(ctx context.Context, opts metav1.ListOptions) (result *v1.PlacementPolicyList, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(placementpoliciesResource, placementpoliciesKind, opts), &v1.PlacementPolicyList{})
-	if obj == nil {
-		return nil, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1.PlacementPolicyList{ListMeta: obj.(*v1.PlacementPolicyList).ListMeta}
-	for _, item := range obj.(*v1.PlacementPolicyList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested placementPolicies.
-func (c *FakePlacementPolicies) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(placementpoliciesResource, opts))
-}
-
-// Create takes the representation of a placementPolicy and creates it.  Returns the server's representation of the placementPolicy, and an error, if there is any.
-func (c *FakePlacementPolicies) Create(ctx context.Context, placementPolicy *v1.PlacementPolicy, opts metav1.CreateOptions) (result *v1.PlacementPolicy, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(placementpoliciesResource, placementPolicy), &v1.PlacementPolicy{})
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1.PlacementPolicy), err
-}
-
-// Update takes the representation of a placementPolicy and updates it. Returns the server's representation of the placementPolicy, and an error, if there is any.
-func (c *FakePlacementPolicies) Update(ctx context.Context, placementPolicy *v1.PlacementPolicy, opts metav1.UpdateOptions) (result *v1.PlacementPolicy, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(placementpoliciesResource, placementPolicy), &v1.PlacementPolicy{})
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1.PlacementPolicy), err
-}
-
-// Delete takes name of the placementPolicy and deletes it. Returns an error if one occurs.
-func (c *FakePlacementPolicies) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteActionWithOptions(placementpoliciesResource, name, opts), &v1.PlacementPolicy{})
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakePlacementPolicies) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(placementpoliciesResource, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1.PlacementPolicyList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched placementPolicy.
-func (c *FakePlacementPolicies) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.PlacementPolicy, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(placementpoliciesResource, name, pt, data, subresources...), &v1.PlacementPolicy{})
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1.PlacementPolicy), err
 }
