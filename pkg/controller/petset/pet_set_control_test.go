@@ -1261,7 +1261,7 @@ func TestPetSetControlRollingUpdateWithMaxUnavailableInOrderedModeVerifyInvarian
 
 			// try to update the petset
 			// this function is only called in main code when feature gate is enabled
-			if _, err = updatePetSetAfterInvariantEstablished(context.TODO(), ssc.(*defaultPetSetControl), set, originalPods, updateRevision, status); err != nil {
+			if _, err = updatePetSetAfterInvariantEstablished(context.TODO(), ssc.(*defaultPetSetControl), set, originalPods, &apps.ControllerRevision{}, updateRevision, status); err != nil {
 				t.Fatal(err)
 			}
 			pods, err := spc.podsLister.Pods(set.Namespace).List(selector)
@@ -2489,6 +2489,7 @@ type fakeObjectManager struct {
 	revisionsIndexer cache.Indexer
 	createPodTracker requestTracker
 	updatePodTracker requestTracker
+	resizePodTracker requestTracker
 	deletePodTracker requestTracker
 }
 
@@ -2506,6 +2507,7 @@ func newFakeObjectManager(informerFactory informers.SharedInformerFactory, apiin
 		claimInformer.Informer().GetIndexer(),
 		setInformer.Informer().GetIndexer(),
 		revisionInformer.Informer().GetIndexer(),
+		newRequestTracker(0, nil, 0),
 		newRequestTracker(0, nil, 0),
 		newRequestTracker(0, nil, 0),
 		newRequestTracker(0, nil, 0),
@@ -2540,6 +2542,21 @@ func (om *fakeObjectManager) GetPod(namespace, podName string, set *api.PetSet) 
 
 func (om *fakeObjectManager) UpdatePod(pod *v1.Pod, set *api.PetSet) error {
 	return om.podsIndexer.Update(pod.DeepCopy())
+}
+
+func (om *fakeObjectManager) ResizePod(ctx context.Context, pod *v1.Pod, set *api.PetSet) error {
+	defer om.resizePodTracker.inc()
+	if om.resizePodTracker.errorReady() {
+		defer om.resizePodTracker.reset()
+		return om.resizePodTracker.getErr()
+	}
+	// Emulate the kubelet: persist the desired (spec) resources onto the stored pod.
+	return om.podsIndexer.Update(pod.DeepCopy())
+}
+
+func (om *fakeObjectManager) SetResizeStatefulPodError(err error, after int) {
+	om.resizePodTracker.err = err
+	om.resizePodTracker.after = after
 }
 
 func (om *fakeObjectManager) ListPods(ns, labelSelector string, set *api.PetSet) (*v1.PodList, error) {

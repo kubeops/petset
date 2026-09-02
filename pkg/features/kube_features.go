@@ -62,6 +62,14 @@ const (
 	//
 	// Set pod completion index as a pod label for Indexed Jobs.
 	PodIndexLabel featuregate.Feature = "PodIndexLabel"
+
+	// owner: @kubedb
+	//
+	// Enables the PetSet controller to actuate a resource-only template change in
+	// place via the pods/resize subresource (instead of delete-and-recreate) and
+	// relabel the pod to the update revision. Falls back to delete-and-recreate when
+	// the cluster does not support in-place pod resize or the resize is infeasible.
+	InPlaceVerticalScaling featuregate.Feature = "InPlaceVerticalScaling"
 )
 
 func init() {
@@ -86,4 +94,6 @@ var defaultPetSetFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 	PodDeletionCost: {Default: true, PreRelease: featuregate.Beta},
 
 	PodIndexLabel: {Default: true, PreRelease: featuregate.Beta},
+
+	InPlaceVerticalScaling: {Default: true, PreRelease: featuregate.Beta},
 }
