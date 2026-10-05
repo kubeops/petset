@@ -1000,7 +1000,7 @@ func IsPodTerminating(p *v1.Pod) bool {
 // FilterActiveReplicaSets returns replica sets that have (or at least ought to have) pods.
 func FilterActiveReplicaSets(replicaSets []*apps.ReplicaSet) []*apps.ReplicaSet {
 	activeFilter := func(rs *apps.ReplicaSet) bool {
-		return rs != nil && *(rs.Spec.Replicas) > 0
+		return rs != nil && *rs.Spec.Replicas > 0
 	}
 	return FilterReplicaSets(replicaSets, activeFilter)
 }
@@ -1057,10 +1057,10 @@ type ReplicaSetsBySizeOlder []*apps.ReplicaSet
 func (o ReplicaSetsBySizeOlder) Len() int      { return len(o) }
 func (o ReplicaSetsBySizeOlder) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
 func (o ReplicaSetsBySizeOlder) Less(i, j int) bool {
-	if *(o[i].Spec.Replicas) == *(o[j].Spec.Replicas) {
+	if *o[i].Spec.Replicas == *o[j].Spec.Replicas {
 		return ReplicaSetsByCreationTimestamp(o).Less(i, j)
 	}
-	return *(o[i].Spec.Replicas) > *(o[j].Spec.Replicas)
+	return *o[i].Spec.Replicas > *o[j].Spec.Replicas
 }
 
 // ReplicaSetsBySizeNewer sorts a list of ReplicaSet by size in descending order, using their creation timestamp or name as a tie breaker.
@@ -1070,10 +1070,10 @@ type ReplicaSetsBySizeNewer []*apps.ReplicaSet
 func (o ReplicaSetsBySizeNewer) Len() int      { return len(o) }
 func (o ReplicaSetsBySizeNewer) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
 func (o ReplicaSetsBySizeNewer) Less(i, j int) bool {
-	if *(o[i].Spec.Replicas) == *(o[j].Spec.Replicas) {
+	if *o[i].Spec.Replicas == *o[j].Spec.Replicas {
 		return ReplicaSetsByCreationTimestamp(o).Less(j, i)
 	}
-	return *(o[i].Spec.Replicas) > *(o[j].Spec.Replicas)
+	return *o[i].Spec.Replicas > *o[j].Spec.Replicas
 }
 
 // AddOrUpdateTaintOnNode add taints to the node. If taint was added into node, it'll issue API calls

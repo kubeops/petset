@@ -29,6 +29,10 @@ type FakeAppsV1 struct {
 	*testing.Fake
 }
 
+func (c *FakeAppsV1) FailoverGroups() v1.FailoverGroupInterface {
+	return &FakeFailoverGroups{c}
+}
+
 func (c *FakeAppsV1) PetSets(namespace string) v1.PetSetInterface {
 	return &FakePetSets{c, namespace}
 }

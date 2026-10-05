@@ -129,11 +129,13 @@ func setAntiAffinityRules(aff *v1.Affinity, pl api.PlacementPolicySpec, podLabel
 		term := newTerm(v1.LabelTopologyZone)
 		if pl.ZoneSpreadConstraint.WhenUnsatisfiable == v1.DoNotSchedule {
 			aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = UpsertPodAffinityTerm(
-				aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, term)
+				aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, term,
+			)
 		} else {
 			aff.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution = UpsertWeightedPodAffinityTerm(
 				aff.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution,
-				v1.WeightedPodAffinityTerm{Weight: 100, PodAffinityTerm: term})
+				v1.WeightedPodAffinityTerm{Weight: 100, PodAffinityTerm: term},
+			)
 		}
 	}
 
@@ -141,11 +143,13 @@ func setAntiAffinityRules(aff *v1.Affinity, pl api.PlacementPolicySpec, podLabel
 		term := newTerm(v1.LabelHostname)
 		if pl.NodeSpreadConstraint.WhenUnsatisfiable == v1.DoNotSchedule {
 			aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = UpsertPodAffinityTerm(
-				aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, term)
+				aff.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, term,
+			)
 		} else {
 			aff.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution = UpsertWeightedPodAffinityTerm(
 				aff.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution,
-				v1.WeightedPodAffinityTerm{Weight: 100, PodAffinityTerm: term})
+				v1.WeightedPodAffinityTerm{Weight: 100, PodAffinityTerm: term},
+			)
 		}
 	}
 }
@@ -338,7 +342,9 @@ func preCalc(pInfo *PodInfo) error {
 
 	env, err := cel.NewEnv(
 		cel.VariableDecls(
-			decls.NewVariable(defaultCELVar, types.DynType)))
+			decls.NewVariable(defaultCELVar, types.DynType),
+		),
+	)
 	if err != nil {
 		klog.Errorf("error while creating new CEL env: %s", err.Error())
 		return fmt.Errorf("creating CEL env: %w", err)

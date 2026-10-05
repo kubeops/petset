@@ -124,7 +124,8 @@ func NewPetSetController(
 				manifestInformer.Lister(),
 				placementInformer.Lister(),
 				pvcInformer.Lister(),
-				recorder),
+				recorder,
+			),
 			NewRealStatefulSetStatusUpdater(apiClient, setInformer.Lister()),
 			history.NewHistory(kubeClient, revInformer.Lister()),
 			recorder,
@@ -500,7 +501,9 @@ func (ssc *PetSetController) getPetSetsForPod(pod *v1.Pod) []*api.PetSet {
 		utilruntime.HandleError(
 			fmt.Errorf(
 				"user error: more than one PetSet is selecting pods with labels: %+v. Sets: %v",
-				pod.Labels, setNames))
+				pod.Labels, setNames,
+			),
+		)
 	}
 	return sets
 }
@@ -523,7 +526,9 @@ func (ssc *PetSetController) getPetSetForManifestWork(mw *apiworkv1.ManifestWork
 		utilruntime.HandleError(
 			fmt.Errorf(
 				"user error: more than one PetSet is selecting manifeswork with labels: %+v. Sets: %v",
-				mw.Labels, setNames))
+				mw.Labels, setNames,
+			),
+		)
 	}
 	return sets
 }

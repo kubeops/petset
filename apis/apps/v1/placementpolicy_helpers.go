@@ -53,17 +53,8 @@ func (c *ClusterSpreadConstraint) Validate() error {
 	}
 
 	fp := c.FailoverPolicy
-	switch fp.Trigger.Scope {
-	case FailoverScopeGlobal:
-		if fp.Trigger.Group != "" {
-			return fmt.Errorf("trigger.group must be empty when scope is Global")
-		}
-	case FailoverScopeGroup:
-		if fp.Trigger.Group == "" {
-			return fmt.Errorf("trigger.group is required when scope is Group")
-		}
-	default:
-		return fmt.Errorf("trigger.scope must be Global or Group, got %q", fp.Trigger.Scope)
+	if fp.FailoverGroupRef != nil && fp.FailoverGroupRef.Name == "" {
+		return fmt.Errorf("failoverGroupRef.name must not be empty")
 	}
 
 	switch fp.Mode {
