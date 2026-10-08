@@ -29,12 +29,16 @@ type FakeAppsV1 struct {
 	*testing.Fake
 }
 
+func (c *FakeAppsV1) FailoverGroups() v1.FailoverGroupInterface {
+	return newFakeFailoverGroups(c)
+}
+
 func (c *FakeAppsV1) PetSets(namespace string) v1.PetSetInterface {
-	return &FakePetSets{c, namespace}
+	return newFakePetSets(c, namespace)
 }
 
 func (c *FakeAppsV1) PlacementPolicies() v1.PlacementPolicyInterface {
-	return &FakePlacementPolicies{c}
+	return newFakePlacementPolicies(c)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

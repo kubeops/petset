@@ -51,7 +51,7 @@ func ComputePodQOS(pod *core.Pod) core.PodQOSClass {
 	zeroQuantity := resource.MustParse("0")
 	isGuaranteed := true
 	// note, ephemeral containers are not considered for QoS as they cannot define resources
-	allContainers := []core.Container{}
+	allContainers := make([]core.Container, 0, len(pod.Spec.Containers)+len(pod.Spec.InitContainers))
 	allContainers = append(allContainers, pod.Spec.Containers...)
 	allContainers = append(allContainers, pod.Spec.InitContainers...)
 	for _, container := range allContainers {

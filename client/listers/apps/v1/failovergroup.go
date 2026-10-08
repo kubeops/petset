@@ -26,24 +26,24 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// PlacementPolicyLister helps list PlacementPolicies.
+// FailoverGroupLister helps list FailoverGroups.
 // All objects returned here must be treated as read-only.
-type PlacementPolicyLister interface {
-	// List lists all PlacementPolicies in the indexer.
+type FailoverGroupLister interface {
+	// List lists all FailoverGroups in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*appsv1.PlacementPolicy, err error)
-	// Get retrieves the PlacementPolicy from the index for a given name.
+	List(selector labels.Selector) (ret []*appsv1.FailoverGroup, err error)
+	// Get retrieves the FailoverGroup from the index for a given name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*appsv1.PlacementPolicy, error)
-	PlacementPolicyListerExpansion
+	Get(name string) (*appsv1.FailoverGroup, error)
+	FailoverGroupListerExpansion
 }
 
-// placementPolicyLister implements the PlacementPolicyLister interface.
-type placementPolicyLister struct {
-	listers.ResourceIndexer[*appsv1.PlacementPolicy]
+// failoverGroupLister implements the FailoverGroupLister interface.
+type failoverGroupLister struct {
+	listers.ResourceIndexer[*appsv1.FailoverGroup]
 }
 
-// NewPlacementPolicyLister returns a new PlacementPolicyLister.
-func NewPlacementPolicyLister(indexer cache.Indexer) PlacementPolicyLister {
-	return &placementPolicyLister{listers.New[*appsv1.PlacementPolicy](indexer, appsv1.Resource("placementpolicy"))}
+// NewFailoverGroupLister returns a new FailoverGroupLister.
+func NewFailoverGroupLister(indexer cache.Indexer) FailoverGroupLister {
+	return &failoverGroupLister{listers.New[*appsv1.FailoverGroup](indexer, appsv1.Resource("failovergroup"))}
 }
