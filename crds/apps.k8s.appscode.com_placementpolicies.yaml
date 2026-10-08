@@ -209,6 +209,25 @@ spec:
                       and selects how the common DC failover service drives failover for it.
                       When nil, the placement is not managed for DC/DR.
                     properties:
+                      failoverGroupRef:
+                        description: |-
+                          FailoverGroupRef names the FailoverGroup this workload fails over with. Every
+                          group is backed by its own primary-dc-<group> Lease. When nil, the workload
+                          follows the global primary-dc Lease. The referenced FailoverGroup object is not
+                          required for failover: the Lease is derived from this reference alone, the
+                          object only adds ordering (dependsOn) and status.
+                        properties:
+                          name:
+                            default: ""
+                            description: |-
+                              Name of the referent.
+                              This field is effectively required, but due to backwards compatibility is
+                              allowed to be empty. Instances of this type with an empty value here are
+                              almost certainly wrong.
+                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                            type: string
+                        type: object
+                        x-kubernetes-map-type: atomic
                       mode:
                         description: |-
                           Mode is the DC topology. It can be derived from the per rule roles
@@ -218,25 +237,6 @@ spec:
                         - TwoDC
                         - ThreeDC
                         type: string
-                      trigger:
-                        description: Trigger selects which primary DC Lease this workload
-                          follows.
-                        properties:
-                          group:
-                            description: Group is required when Scope is Group; it
-                              names the primary-dc-<group> Lease.
-                            type: string
-                          scope:
-                            description: Scope is Global or Group.
-                            enum:
-                            - Global
-                            - Group
-                            type: string
-                        required:
-                        - scope
-                        type: object
-                    required:
-                    - trigger
                     type: object
                   slice:
                     properties:

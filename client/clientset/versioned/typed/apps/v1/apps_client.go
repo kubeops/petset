@@ -29,6 +29,7 @@ import (
 
 type AppsV1Interface interface {
 	RESTClient() rest.Interface
+	FailoverGroupsGetter
 	PetSetsGetter
 	PlacementPoliciesGetter
 }
@@ -36,6 +37,10 @@ type AppsV1Interface interface {
 // AppsV1Client is used to interact with features provided by the apps.k8s.appscode.com group.
 type AppsV1Client struct {
 	restClient rest.Interface
+}
+
+func (c *AppsV1Client) FailoverGroups() FailoverGroupInterface {
+	return newFailoverGroups(c)
 }
 
 func (c *AppsV1Client) PetSets(namespace string) PetSetInterface {
