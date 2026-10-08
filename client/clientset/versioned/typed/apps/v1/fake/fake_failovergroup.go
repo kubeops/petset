@@ -25,24 +25,24 @@ import (
 	gentype "k8s.io/client-go/gentype"
 )
 
-// fakePlacementPolicies implements PlacementPolicyInterface
-type fakePlacementPolicies struct {
-	*gentype.FakeClientWithList[*v1.PlacementPolicy, *v1.PlacementPolicyList]
+// fakeFailoverGroups implements FailoverGroupInterface
+type fakeFailoverGroups struct {
+	*gentype.FakeClientWithList[*v1.FailoverGroup, *v1.FailoverGroupList]
 	Fake *FakeAppsV1
 }
 
-func newFakePlacementPolicies(fake *FakeAppsV1) appsv1.PlacementPolicyInterface {
-	return &fakePlacementPolicies{
-		gentype.NewFakeClientWithList[*v1.PlacementPolicy, *v1.PlacementPolicyList](
+func newFakeFailoverGroups(fake *FakeAppsV1) appsv1.FailoverGroupInterface {
+	return &fakeFailoverGroups{
+		gentype.NewFakeClientWithList[*v1.FailoverGroup, *v1.FailoverGroupList](
 			fake.Fake,
 			"",
-			v1.SchemeGroupVersion.WithResource("placementpolicies"),
-			v1.SchemeGroupVersion.WithKind("PlacementPolicy"),
-			func() *v1.PlacementPolicy { return &v1.PlacementPolicy{} },
-			func() *v1.PlacementPolicyList { return &v1.PlacementPolicyList{} },
-			func(dst, src *v1.PlacementPolicyList) { dst.ListMeta = src.ListMeta },
-			func(list *v1.PlacementPolicyList) []*v1.PlacementPolicy { return gentype.ToPointerSlice(list.Items) },
-			func(list *v1.PlacementPolicyList, items []*v1.PlacementPolicy) {
+			v1.SchemeGroupVersion.WithResource("failovergroups"),
+			v1.SchemeGroupVersion.WithKind("FailoverGroup"),
+			func() *v1.FailoverGroup { return &v1.FailoverGroup{} },
+			func() *v1.FailoverGroupList { return &v1.FailoverGroupList{} },
+			func(dst, src *v1.FailoverGroupList) { dst.ListMeta = src.ListMeta },
+			func(list *v1.FailoverGroupList) []*v1.FailoverGroup { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1.FailoverGroupList, items []*v1.FailoverGroup) {
 				list.Items = gentype.FromPointerSlice(items)
 			},
 		),

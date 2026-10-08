@@ -33,70 +33,70 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// PlacementPolicyInformer provides access to a shared informer and lister for
-// PlacementPolicies.
-type PlacementPolicyInformer interface {
+// FailoverGroupInformer provides access to a shared informer and lister for
+// FailoverGroups.
+type FailoverGroupInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() appsv1.PlacementPolicyLister
+	Lister() appsv1.FailoverGroupLister
 }
 
-type placementPolicyInformer struct {
+type failoverGroupInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
-// NewPlacementPolicyInformer constructs a new informer for PlacementPolicy type.
+// NewFailoverGroupInformer constructs a new informer for FailoverGroup type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewPlacementPolicyInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredPlacementPolicyInformer(client, resyncPeriod, indexers, nil)
+func NewFailoverGroupInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredFailoverGroupInformer(client, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredPlacementPolicyInformer constructs a new informer for PlacementPolicy type.
+// NewFilteredFailoverGroupInformer constructs a new informer for FailoverGroup type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredPlacementPolicyInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredFailoverGroupInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.AppsV1().PlacementPolicies().List(context.Background(), options)
+				return client.AppsV1().FailoverGroups().List(context.Background(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.AppsV1().PlacementPolicies().Watch(context.Background(), options)
+				return client.AppsV1().FailoverGroups().Watch(context.Background(), options)
 			},
 			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.AppsV1().PlacementPolicies().List(ctx, options)
+				return client.AppsV1().FailoverGroups().List(ctx, options)
 			},
 			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.AppsV1().PlacementPolicies().Watch(ctx, options)
+				return client.AppsV1().FailoverGroups().Watch(ctx, options)
 			},
 		},
-		&apisappsv1.PlacementPolicy{},
+		&apisappsv1.FailoverGroup{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *placementPolicyInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredPlacementPolicyInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *failoverGroupInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredFailoverGroupInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *placementPolicyInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisappsv1.PlacementPolicy{}, f.defaultInformer)
+func (f *failoverGroupInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&apisappsv1.FailoverGroup{}, f.defaultInformer)
 }
 
-func (f *placementPolicyInformer) Lister() appsv1.PlacementPolicyLister {
-	return appsv1.NewPlacementPolicyLister(f.Informer().GetIndexer())
+func (f *failoverGroupInformer) Lister() appsv1.FailoverGroupLister {
+	return appsv1.NewFailoverGroupLister(f.Informer().GetIndexer())
 }

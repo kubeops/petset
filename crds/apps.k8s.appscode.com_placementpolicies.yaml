@@ -3,7 +3,6 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  creationTimestamp: null
   name: placementpolicies.apps.k8s.appscode.com
 spec:
   group: apps.k8s.appscode.com
@@ -184,6 +183,19 @@ spec:
                             format: int32
                             type: integer
                           type: array
+                        role:
+                          description: |-
+                            Role describes how this data center participates in DC/DR failover.
+                            Member: data bearing and primary eligible (a candidate for the primary DC).
+                            Arbiter: votes only, holds no data, never primary.
+                            Witness: data bearing but never primary (for engines like MongoDB whose
+                            witness must carry data to satisfy majority writes, yet must not be elected).
+                            Defaults to Member when empty.
+                          enum:
+                          - Member
+                          - Arbiter
+                          - Witness
+                          type: string
                         storageClassName:
                           type: string
                       required:
@@ -191,6 +203,41 @@ spec:
                       - replicaIndices
                       type: object
                     type: array
+                  failoverPolicy:
+                    description: |-
+                      FailoverPolicy, when set, marks this as a cross data center (DC/DR) deployment
+                      and selects how the common DC failover service drives failover for it.
+                      When nil, the placement is not managed for DC/DR.
+                    properties:
+                      failoverGroupRef:
+                        description: |-
+                          FailoverGroupRef names the FailoverGroup this workload fails over with. Every
+                          group is backed by its own primary-dc-<group> Lease. When nil, the workload
+                          follows the global primary-dc Lease. The referenced FailoverGroup object is not
+                          required for failover: the Lease is derived from this reference alone, the
+                          object only adds ordering (dependsOn) and status.
+                        properties:
+                          name:
+                            default: ""
+                            description: |-
+                              Name of the referent.
+                              This field is effectively required, but due to backwards compatibility is
+                              allowed to be empty. Instances of this type with an empty value here are
+                              almost certainly wrong.
+                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                            type: string
+                        type: object
+                        x-kubernetes-map-type: atomic
+                      mode:
+                        description: |-
+                          Mode is the DC topology. It can be derived from the per rule roles
+                          (two Members plus an Arbiter or Witness is TwoDC, three Members is ThreeDC);
+                          when set it is validated against the roles.
+                        enum:
+                        - TwoDC
+                        - ThreeDC
+                        type: string
+                    type: object
                   slice:
                     properties:
                       projectNamespace:
