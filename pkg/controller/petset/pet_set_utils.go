@@ -31,6 +31,7 @@ import (
 
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -675,4 +676,195 @@ func DeepCopyLabel(label map[string]string) map[string]string {
 		newLabel[key] = value
 	}
 	return newLabel
+}
+
+// ----------------------------------------------------------------------------
+// In-place vertical scaling (resource-only) helpers.
+// ----------------------------------------------------------------------------
+
+// resizePhase enumerates the kubelet-reported progress of an in-place pod resize.
+type resizePhase int
+
+const (
+	// resizeInfeasible means the kubelet rejected the resize and will not retry it.
+	resizeInfeasible resizePhase = iota
+	// resizeDeferred means the resize is feasible in theory but cannot be actuated right now.
+	resizeDeferred
+	// resizeInProgress means the kubelet has accepted the resize and is actuating it.
+	resizeInProgress
+	// resizeDone means the kubelet has finished actuating the resize.
+	resizeDone
+)
+
+// inPlaceVerticalScalingEnabled reports whether the InPlaceVerticalScaling feature
+// gate is on. When off, in-place resize is never attempted and the controller keeps
+// its byte-for-byte current delete-and-recreate behavior.
+func inPlaceVerticalScalingEnabled() bool {
+	return features.DefaultFeatureGate.Enabled(features.InPlaceVerticalScaling)
+}
+
+// updateRevisionPodSpec materializes the pod spec captured in updateRevision by
+// re-applying the revision patch to set.
+func updateRevisionPodSpec(set *api.PetSet, updateRevision *apps.ControllerRevision) (*v1.PodSpec, error) {
+	updateSet, err := ApplyRevision(set, updateRevision)
+	if err != nil {
+		return nil, err
+	}
+	return &updateSet.Spec.Template.Spec, nil
+}
+
+// containerResourcesByName indexes a container slice by name -> resources.
+func containerResourcesByName(containers []v1.Container) map[string]v1.ResourceRequirements {
+	m := make(map[string]v1.ResourceRequirements, len(containers))
+	for i := range containers {
+		m[containers[i].Name] = containers[i].Resources
+	}
+	return m
+}
+
+// applyResources copies the per-container resources (and pod-level resources, when
+// set) from desiredSpec onto the target pod, matching containers by name. Containers
+// present on the pod but absent from desiredSpec are left untouched.
+func applyResources(target *v1.Pod, desiredSpec *v1.PodSpec) {
+	desired := containerResourcesByName(desiredSpec.Containers)
+	for i := range target.Spec.Containers {
+		if res, ok := desired[target.Spec.Containers[i].Name]; ok {
+			target.Spec.Containers[i].Resources = res
+		}
+	}
+	desiredInit := containerResourcesByName(desiredSpec.InitContainers)
+	for i := range target.Spec.InitContainers {
+		if res, ok := desiredInit[target.Spec.InitContainers[i].Name]; ok {
+			target.Spec.InitContainers[i].Resources = res
+		}
+	}
+	if desiredSpec.Resources != nil {
+		target.Spec.Resources = desiredSpec.Resources.DeepCopy()
+	}
+}
+
+// resourcesMatch reports whether the running pod's container resources (and
+// pod-level resources, when set on updateRevisionPod) already equal the
+// update-revision pod. Containers are matched by name.
+func resourcesMatch(updateRevisionPod *v1.Pod, pod *v1.Pod) bool {
+	live := containerResourcesByName(pod.Spec.Containers)
+	for i := range updateRevisionPod.Spec.Containers {
+		c := &updateRevisionPod.Spec.Containers[i]
+		got, ok := live[c.Name]
+		if !ok || !apiequality.Semantic.DeepEqual(got, c.Resources) {
+			return false
+		}
+	}
+	liveInit := containerResourcesByName(pod.Spec.InitContainers)
+	for i := range updateRevisionPod.Spec.InitContainers {
+		c := &updateRevisionPod.Spec.InitContainers[i]
+		got, ok := liveInit[c.Name]
+		if !ok || !apiequality.Semantic.DeepEqual(got, c.Resources) {
+			return false
+		}
+	}
+	return apiequality.Semantic.DeepEqual(pod.Spec.Resources, updateRevisionPod.Spec.Resources)
+}
+
+// zeroPodResources clears every container's (and the pod-level) Resources on a pod
+// spec so that two specs can be compared for non-resource differences.
+func zeroPodResources(spec *v1.PodSpec) {
+	for i := range spec.Containers {
+		spec.Containers[i].Resources = v1.ResourceRequirements{}
+	}
+	for i := range spec.InitContainers {
+		spec.InitContainers[i].Resources = v1.ResourceRequirements{}
+	}
+	spec.Resources = nil
+}
+
+// onlyResourcesDiffer renders the pod's CURRENT revision and the update revision and
+// compares the whole pod specs with resources zeroed. Comparing two rendered revisions
+// (instead of the live pod against a template) cancels apiserver defaulting noise, and
+// comparing the FULL PodSpec (not just containers) guarantees that any non-resource
+// change (volumes, affinity, tolerations, nodeSelector, securityContext, template
+// labels, ...) makes the pod ineligible, so an in-place resize can never silently drop
+// such a change. Equal => the ONLY difference between the revisions is resources.
+func onlyResourcesDiffer(set *api.PetSet, pod *v1.Pod, currentRevision, updateRevision *apps.ControllerRevision) (bool, error) {
+	// The pod is being updated FROM currentRevision TO updateRevision. The callers only
+	// reach this for pods not at updateRevision, which in the PetSet model are at
+	// currentRevision; verify that, and otherwise fall back to delete-and-recreate.
+	if currentRevision == nil || getPodRevision(pod) != currentRevision.Name {
+		return false, nil
+	}
+	curSpec, err := updateRevisionPodSpec(set, currentRevision)
+	if err != nil {
+		return false, err
+	}
+	updSpec, err := updateRevisionPodSpec(set, updateRevision)
+	if err != nil {
+		return false, err
+	}
+	cur := curSpec.DeepCopy()
+	upd := updSpec.DeepCopy()
+	zeroPodResources(cur)
+	zeroPodResources(upd)
+	return apiequality.Semantic.DeepEqual(cur, upd), nil
+}
+
+// inPlaceResizeEligible reports whether pod can be resized in place to the update
+// revision instead of being deleted and recreated.
+func inPlaceResizeEligible(set *api.PetSet, pod *v1.Pod, currentRevision, updateRevision *apps.ControllerRevision) (bool, error) {
+	if !inPlaceVerticalScalingEnabled() {
+		return false, nil
+	}
+	if !identityMatches(set, pod) || !storageMatches(set, pod) {
+		return false, nil
+	}
+	only, err := onlyResourcesDiffer(set, pod, currentRevision, updateRevision)
+	if err != nil {
+		return false, err
+	}
+	return only, nil
+}
+
+// podCondition returns the pod condition of the given type, or nil if absent.
+func podCondition(pod *v1.Pod, condType v1.PodConditionType) *v1.PodCondition {
+	for i := range pod.Status.Conditions {
+		if pod.Status.Conditions[i].Type == condType {
+			return &pod.Status.Conditions[i]
+		}
+	}
+	return nil
+}
+
+// resizeState derives the kubelet-reported progress of an in-place resize from the
+// pod's status. It relies on authoritative status signals (the PodResizePending /
+// PodResizeInProgress conditions and the actuated ContainerStatuses[i].Resources),
+// never on the pod spec, because the spec updates instantly while the cgroup change
+// is what we wait on.
+func resizeState(pod *v1.Pod) resizePhase {
+	if c := podCondition(pod, v1.PodResizePending); c != nil && c.Status == v1.ConditionTrue {
+		if c.Reason == v1.PodReasonInfeasible {
+			return resizeInfeasible
+		}
+		return resizeDeferred
+	}
+	if c := podCondition(pod, v1.PodResizeInProgress); c != nil && c.Status == v1.ConditionTrue {
+		return resizeInProgress
+	}
+	// No pending/in-progress condition: confirm the kubelet has actuated the desired
+	// resources by comparing the per-container status resources to the (already
+	// updated) spec resources.
+	desired := containerResourcesByName(pod.Spec.Containers)
+	for i := range pod.Status.ContainerStatuses {
+		cs := &pod.Status.ContainerStatuses[i]
+		want, ok := desired[cs.Name]
+		if !ok {
+			continue
+		}
+		var got v1.ResourceRequirements
+		if cs.Resources != nil {
+			got = *cs.Resources
+		}
+		if !apiequality.Semantic.DeepEqual(got, want) {
+			return resizeInProgress
+		}
+	}
+	return resizeDone
 }
