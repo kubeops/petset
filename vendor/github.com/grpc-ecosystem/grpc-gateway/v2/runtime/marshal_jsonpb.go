@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"reflect"
 	"strconv"
 
@@ -66,7 +67,7 @@ func (j *JSONPb) marshalTo(w io.Writer, v interface{}) error {
 
 var (
 	// protoMessageType is stored to prevent constant lookup of the same type at runtime.
-	protoMessageType = reflect.TypeOf((*proto.Message)(nil)).Elem()
+	protoMessageType = reflect.TypeFor[proto.Message]()
 )
 
 // marshalNonProto marshals a non-message field of a protobuf message.
@@ -311,6 +312,12 @@ func decodeNonProtoField(d *json.Decoder, unmarshaler protojson.UnmarshalOptions
 			// TODO(yugui) Should use proto.StructProperties?
 			return fmt.Errorf("unmarshaling of symbolic enum %q not supported: %T", repr, rv.Interface())
 		case float64:
+			// Enum values are int32 on the wire. A fractional or out-of-range
+			// number would otherwise be silently truncated/wrapped into a bogus
+			// enum here, unlike protojson which rejects it, so reject it too.
+			if v != math.Trunc(v) || v < math.MinInt32 || v > math.MaxInt32 {
+				return fmt.Errorf("%v is not a valid value for enum %T", repr, rv.Interface())
+			}
 			rv.Set(reflect.ValueOf(int32(v)).Convert(rv.Type()))
 			return nil
 		default:
@@ -325,9 +332,9 @@ type protoEnum interface {
 	EnumDescriptor() ([]byte, []int)
 }
 
-var typeProtoEnum = reflect.TypeOf((*protoEnum)(nil)).Elem()
+var typeProtoEnum = reflect.TypeFor[protoEnum]()
 
-var typeProtoMessage = reflect.TypeOf((*proto.Message)(nil)).Elem()
+var typeProtoMessage = reflect.TypeFor[proto.Message]()
 
 // Delimiter for newline encoded JSON streams.
 func (j *JSONPb) Delimiter() []byte {
