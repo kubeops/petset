@@ -144,6 +144,14 @@ type FailoverGroupMember struct {
 	// treated as ready.
 	// +optional
 	ObservedAt *metav1.Time `json:"observedAt,omitempty"`
+
+	// HandoffTo is set by a member that has finished its own pre-handoff work
+	// and asks for the group's primary DC Lease to move to this data center.
+	// The FailoverGroup controller acts only when every member of the group
+	// carries the same fresh value. Members that hand their Lease over
+	// themselves (the database engines) leave it empty.
+	// +optional
+	HandoffTo string `json:"handoffTo,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
