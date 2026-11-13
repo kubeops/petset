@@ -239,6 +239,10 @@ spec:
                         type: string
                     type: object
                   slice:
+                    description: |-
+                      Slice names the KubeSlice the clusters are joined by. It is optional:
+                      workloads that do not use a slice (for example stateless applications that
+                      reach their database through a local Service) leave it unset.
                     properties:
                       projectNamespace:
                         type: string
@@ -250,7 +254,6 @@ spec:
                     type: object
                 required:
                 - distributionRules
-                - slice
                 type: object
               nodeSpreadConstraint:
                 properties:

@@ -83,7 +83,11 @@ So, the project field is not required in the placementPolicy API . But if want t
 */
 type ClusterSpreadConstraint struct {
 	DistributionRules []DistributionRule `json:"distributionRules"`
-	Slice             KubeSliceConfig    `json:"slice"`
+	// Slice names the KubeSlice the clusters are joined by. It is optional:
+	// workloads that do not use a slice (for example stateless applications that
+	// reach their database through a local Service) leave it unset.
+	// +optional
+	Slice *KubeSliceConfig `json:"slice,omitempty"`
 
 	// FailoverPolicy, when set, marks this as a cross data center (DC/DR) deployment
 	// and selects how the common DC failover service drives failover for it.

@@ -63,7 +63,11 @@ func (in *ClusterSpreadConstraint) DeepCopyInto(out *ClusterSpreadConstraint) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	out.Slice = in.Slice
+	if in.Slice != nil {
+		in, out := &in.Slice, &out.Slice
+		*out = new(KubeSliceConfig)
+		**out = **in
+	}
 	if in.FailoverPolicy != nil {
 		in, out := &in.FailoverPolicy, &out.FailoverPolicy
 		*out = new(FailoverPolicy)
