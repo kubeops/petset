@@ -90,6 +90,21 @@ func (in *DistributionRule) DeepCopyInto(out *DistributionRule) {
 		*out = make([]int32, len(*in))
 		copy(*out, *in)
 	}
+	if in.Topology != nil {
+		in, out := &in.Topology, &out.Topology
+		*out = make(map[string][]int32, len(*in))
+		for key, val := range *in {
+			var outVal []int32
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				in, out := &val, &outVal
+				*out = make([]int32, len(*in))
+				copy(*out, *in)
+			}
+			(*out)[key] = outVal
+		}
+	}
 	if in.Monitoring != nil {
 		in, out := &in.Monitoring, &out.Monitoring
 		*out = new(Monitoring)

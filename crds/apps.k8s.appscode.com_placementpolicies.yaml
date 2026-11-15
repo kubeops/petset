@@ -179,6 +179,9 @@ spec:
                               type: object
                           type: object
                         replicaIndices:
+                          description: |-
+                            ReplicaIndices are the pod ordinals this cluster runs. For a database with
+                            node roles (topology mode) leave it empty and set Topology instead.
                           items:
                             format: int32
                             type: integer
@@ -198,9 +201,21 @@ spec:
                           type: string
                         storageClassName:
                           type: string
+                        topology:
+                          additionalProperties:
+                            items:
+                              format: int32
+                              type: integer
+                            type: array
+                          description: |-
+                            Topology places a database's node roles, for databases that run several
+                            kinds of nodes (for example Elasticsearch master, ingest and data nodes).
+                            The key is the role name as used in the database's spec.topology, the value
+                            lists the ordinals of that role this cluster runs, numbered across all
+                            clusters like ReplicaIndices. A rule sets either ReplicaIndices or Topology.
+                          type: object
                       required:
                       - clusterName
-                      - replicaIndices
                       type: object
                     type: array
                   failoverPolicy:

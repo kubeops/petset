@@ -93,8 +93,21 @@ type ClusterSpreadConstraint struct {
 }
 
 type DistributionRule struct {
-	ClusterName      string      `json:"clusterName"`
-	ReplicaIndices   []int32     `json:"replicaIndices"`
+	ClusterName string `json:"clusterName"`
+
+	// ReplicaIndices are the pod ordinals this cluster runs. For a database with
+	// node roles (topology mode) leave it empty and set Topology instead.
+	// +optional
+	ReplicaIndices []int32 `json:"replicaIndices,omitempty"`
+
+	// Topology places a database's node roles, for databases that run several
+	// kinds of nodes (for example Elasticsearch master, ingest and data nodes).
+	// The key is the role name as used in the database's spec.topology, the value
+	// lists the ordinals of that role this cluster runs, numbered across all
+	// clusters like ReplicaIndices. A rule sets either ReplicaIndices or Topology.
+	// +optional
+	Topology map[string][]int32 `json:"topology,omitempty"`
+
 	StorageClassName string      `json:"storageClassName,omitempty"`
 	Monitoring       *Monitoring `json:"monitoring,omitempty"`
 
