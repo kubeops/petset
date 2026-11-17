@@ -201,5 +201,6 @@ func (w *PetSetCustomWebhook) validatePlacementPolicy(ctx context.Context, set *
 	if len(missing) > 0 {
 		return fmt.Errorf("missing replica index %v at placementpolicy: %v", missing, pp.Name)
 	}
+
 	return nil
 }
